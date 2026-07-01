@@ -1,0 +1,36 @@
+// api/detect.js
+// Proxy sécurisé vers l'API Anthropic — garde ANTHROPIC_API_KEY côté serveur,
+// jamais exposée au navigateur.
+
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: { message: 'Méthode non autorisée. Utilise POST.' } });
+    return;
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    res.status(500).json({
+      error: { message: "ANTHROPIC_API_KEY n'est pas configurée sur le serveur. Ajoute-la dans les variables d'environnement Vercel." }
+    });
+    return;
+  }
+
+  try {
+    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify(req.body)
+    });
+
+    const data = await upstream.json();
+    res.status(upstream.status).json(data);
+  } catch (err) {
+    console.error('Erreur proxy /api/detect:', err);
+    res.status(500).json({ error: { message: 'Erreur serveur lors de l\u2019appel à l\u2019API Anthropic: ' + String(err) } });
+  }
+};

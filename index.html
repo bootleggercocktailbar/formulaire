@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Griffe — Prototype</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root{
+  --paper:#EFEDE6;
+  --surface:#FFFFFF;
+  --ink:#14213D;
+  --ink-soft:#4A5169;
+  --accent:#B8862E;
+  --accent-soft:#F1E4C6;
+  --line:#D9D6CC;
+  --danger:#A6432F;
+  --success:#3F6B4F;
+  --type-text:#3A5A8C;
+  --type-date:#2F7A6B;
+  --type-checkbox:#A6743A;
+  --type-signature:#B8862E;
+  --type-heading:#6B6558;
+  --radius:10px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'IBM Plex Sans',sans-serif;
+  font-size:15px;
+  line-height:1.5;
+  min-height:100vh;
+}
+h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;color:var(--ink);}
+button{font-family:inherit;cursor:pointer;}
+input{font-family:inherit;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+
+/* ===== Header ===== */
+header{
+  background:var(--surface);
+  border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:50;
+}
+.header-inner{
+  max-width:1280px;margin:0 auto;padding:14px 20px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:10px;}
+.logo-mark path{
+  stroke-dasharray:1;stroke-dashoffset:1;
+  animation:draw 1.4s ease forwards;
+}
+@keyframes draw{to{stroke-dashoffset:0;}}
+.brand-text{display:flex;flex-direction:column;line-height:1.1;}
+.brand-text strong{font-family:'Fraunces',serif;font-size:20px;font-weight:600;}
+.brand-text span{font-size:11px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;letter-spacing:.02em;}
+
+.tabs{display:flex;background:var(--paper);border-radius:999px;padding:4px;gap:2px;flex-wrap:wrap;}
+.tab-btn{
+  border:none;background:transparent;padding:9px 16px;border-radius:999px;
+  font-size:13.5px;font-weight:500;color:var(--ink-soft);white-space:nowrap;
+  transition:background .15s,color .15s;
+}
+.tab-btn.active{background:var(--ink);color:#fff;}
+.subtab-btn{
+  border:none;background:transparent;padding:9px 16px;border-radius:999px;
+  font-size:13.5px;font-weight:500;color:var(--ink-soft);white-space:nowrap;
+  transition:background .15s,color .15s;
+}
+.subtab-btn.active{background:var(--ink);color:#fff;}
+
+.notice{
+  max-width:1280px;margin:14px auto 0;padding:0 20px;
+}
+.notice-inner{
+  background:var(--accent-soft);border:1px solid #E1CE9C;border-radius:var(--radius);
+  padding:10px 14px;font-size:13px;color:#5A4419;
+}
+
+main{max-width:1280px;margin:0 auto;padding:24px 20px 80px;}
+.view{display:none;}
+.view.active{display:block;}
+
+/* ===== Buttons ===== */
+.btn{
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  padding:9px 16px;border-radius:8px;font-size:13.5px;font-weight:500;
+  display:inline-flex;align-items:center;gap:6px;transition:border-color .15s,background .15s;
+}
+.btn:hover{border-color:var(--ink-soft);}
+.btn-primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+.btn-primary:hover{background:#0c1830;}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-accent:hover{background:#A2761F;}
+.btn-sm{padding:6px 11px;font-size:12.5px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn.active-field{outline:2px solid var(--accent);outline-offset:1px;}
+
+/* ===== Creator layout ===== */
+.create-layout{display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start;}
+@media (max-width:900px){.create-layout{grid-template-columns:1fr;} .sidebar{order:-1;position:static !important;}}
+
+.create-dual{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
+@media (max-width:1150px){.create-dual{grid-template-columns:1fr;}}
+.create-pane{min-width:0;}
+.create-pane-header{
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--ink-soft);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line);
+}
+@keyframes linkFlash{ from{ box-shadow:0 0 0 4px var(--accent); } to{ box-shadow:0 0 0 0 rgba(184,134,46,0); } }
+.link-flash{ animation: linkFlash 1.3s ease; border-radius:6px; }
+
+.upload-zone{
+  display:block;
+  background:var(--surface);border:2px dashed var(--line);border-radius:var(--radius);
+  padding:48px 20px;text-align:center;color:var(--ink-soft);cursor:pointer;
+}
+.upload-zone strong{color:var(--ink);}
+.upload-zone input{display:none;}
+
+.sidebar{position:sticky;top:84px;display:flex;flex-direction:column;gap:14px;}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;}
+.card h3{font-size:14px;margin-bottom:10px;}
+.field-group{margin-bottom:12px;}
+.field-group label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;font-family:'IBM Plex Mono',monospace;}
+.field-group input[type=text]{
+  width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;
+}
+.toolbar-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.type-btn{
+  border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 8px;
+  font-size:12px;font-weight:500;text-align:left;display:flex;align-items:center;gap:7px;
+}
+.type-dot{width:9px;height:9px;border-radius:3px;flex:none;}
+.status-line{font-size:12.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+.share-box{background:var(--accent-soft);border:1px solid #E1CE9C;border-radius:8px;padding:12px;font-size:12.5px;}
+.share-box .url{font-family:'IBM Plex Mono',monospace;background:#fff;padding:7px 9px;border-radius:6px;word-break:break-all;margin:8px 0;border:1px solid #E1CE9C;}
+
+.pages-col{display:flex;flex-direction:column;gap:18px;cursor:default;}
+.pages-col.placing .page-container{cursor:crosshair;}
+.page-container{position:relative;background:#fff;box-shadow:0 1px 3px rgba(20,33,61,.12),0 8px 24px rgba(20,33,61,.08);border-radius:4px;overflow:hidden;}
+.page-container canvas,.page-container img.page-img{display:block;width:100%;height:auto;}
+.page-overlay{position:absolute;inset:0;}
+
+.field-box{
+  position:absolute;border:2px dashed var(--type-text);border-radius:4px;background:rgba(58,90,140,.08);
+  touch-action:none;user-select:none;min-width:24px;min-height:18px;
+}
+.field-text{border-color:var(--type-text);background:rgba(58,90,140,.08);}
+.field-date{border-color:var(--type-date);background:rgba(47,122,107,.08);}
+.field-checkbox{border-color:var(--type-checkbox);background:rgba(166,116,58,.1);}
+.field-signature{border-color:var(--type-signature);background:rgba(184,134,46,.08);}
+.field-heading{border-color:var(--type-heading);background:rgba(107,101,88,.08);}
+.field-tag{
+  position:absolute;top:-9px;left:4px;font-family:'IBM Plex Mono',monospace;font-size:9px;
+  background:var(--ink);color:#fff;padding:1px 5px;border-radius:3px;letter-spacing:.03em;
+}
+.field-label-input{
+  position:absolute;inset:9px 22px 2px 4px;border:none;background:transparent;font-size:11px;
+  color:var(--ink);font-family:'IBM Plex Mono',monospace;width:calc(100% - 26px);
+}
+.field-label-input:focus{outline:none;background:rgba(255,255,255,.6);}
+.field-del{
+  position:absolute;top:-9px;right:-7px;width:16px;height:16px;border-radius:50%;border:none;
+  background:var(--danger);color:#fff;font-size:11px;line-height:1;padding:0;
+}
+.field-req{
+  position:absolute;top:-9px;right:14px;width:16px;height:16px;border-radius:50%;
+  background:#fff;color:var(--ink-soft);font-size:11px;font-weight:700;line-height:1;padding:0;
+  border:1px solid var(--line);
+}
+.field-req.active{background:var(--danger);color:#fff;border-color:var(--danger);}
+.field-box.field-required{border-style:solid;}
+.required-mark{color:var(--danger);margin-left:3px;font-weight:700;}
+.field-missing{outline:2px solid var(--danger);outline-offset:2px;border-radius:8px;}
+.resize-handle{
+  position:absolute;right:0;bottom:0;width:12px;height:12px;cursor:nwse-resize;
+  background:linear-gradient(135deg,transparent 50%,var(--ink-soft) 50%);border-bottom-right-radius:4px;
+}
+
+.empty-state{
+  background:var(--surface);border:1px dashed var(--line);border-radius:var(--radius);
+  padding:50px 20px;text-align:center;color:var(--ink-soft);
+}
+
+/* Créateur — liste simple */
+.create-simple-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start;}
+.create-simple-card.required{border-left:4px solid var(--danger);}
+.create-simple-card.is-heading{background:var(--paper);border-style:dashed;}
+.create-simple-card.is-heading .csc-label-input{font-weight:600;font-style:italic;background:transparent;border-color:transparent;}
+.csc-reorder{display:flex;flex-direction:column;gap:3px;flex:none;}
+.csc-reorder button{width:24px;height:22px;border:1px solid var(--line);background:var(--paper);border-radius:4px;font-size:10px;line-height:1;padding:0;color:var(--ink-soft);}
+.csc-reorder button:disabled{opacity:.3;}
+.csc-main{flex:1;min-width:0;}
+.csc-row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.csc-label-input{flex:1;min-width:140px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;}
+.csc-type-select{padding:8px;border:1px solid var(--line);border-radius:6px;font-size:12px;background:#fff;color:var(--ink);}
+.csc-page-wrap{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+.csc-page-input{width:44px;padding:7px 5px;border:1px solid var(--line);border-radius:6px;font-size:12px;text-align:center;}
+.csc-actions{display:flex;gap:6px;align-items:center;flex:none;}
+.csc-req-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:#fff;font-weight:700;color:var(--ink-soft);flex:none;}
+.csc-req-btn.active{background:var(--danger);color:#fff;border-color:var(--danger);}
+.csc-del-btn{width:28px;height:28px;border-radius:50%;border:none;background:var(--danger);color:#fff;font-size:14px;flex:none;}
+.csc-empty{color:var(--ink-soft);font-size:13px;padding:36px 20px;text-align:center;background:var(--surface);border:1px dashed var(--line);border-radius:var(--radius);}
+.csc-move-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-size:10px;flex:none;}
+.csc-move-btn:hover{background:var(--paper);}
+.insert-point{position:relative;height:15px;display:flex;align-items:center;justify-content:center;}
+.insert-point::before{
+  content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:var(--accent);opacity:0;transition:opacity .15s;
+}
+.insert-point:hover::before{opacity:.5;}
+.insert-plus{
+  position:relative;z-index:2;width:20px;height:20px;border-radius:50%;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-soft);font-size:13px;line-height:1;opacity:0;transition:opacity .15s,background .15s,color .15s;cursor:pointer;
+}
+.insert-point:hover .insert-plus, .insert-point:has(.insert-menu.open) .insert-plus{opacity:1;}
+.insert-plus:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.insert-menu{
+  display:none;flex-direction:column;gap:2px;position:absolute;top:100%;left:50%;transform:translateX(-50%);z-index:20;
+  background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(20,33,61,.18);padding:6px;min-width:180px;
+}
+.insert-menu.open{display:flex;}
+.insert-menu-btn{border:none;background:transparent;padding:8px 10px;text-align:left;border-radius:6px;font-size:12.5px;color:var(--ink);}
+.insert-menu-btn:hover{background:var(--paper);}
+.transcript-heading{font-family:'Fraunces',serif;font-weight:600;font-size:16px;color:var(--ink);margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);}
+.transcript-heading:first-child{margin-top:0;}
+.transcript-paragraph{font-size:13px;line-height:1.65;color:var(--ink-soft);margin:0 0 14px;padding:0 2px;}
+.transcript-block-wrap{position:relative;}
+.transcript-block-wrap:hover .transcript-del-btn{opacity:1;}
+.transcript-del-btn{
+  position:absolute;top:0;right:-4px;width:22px;height:22px;border-radius:50%;border:none;
+  background:var(--danger);color:#fff;font-size:13px;line-height:1;opacity:0;transition:opacity .15s;cursor:pointer;
+}
+.ro-value{font-size:14.5px;font-weight:500;color:var(--ink);padding:9px 12px;background:var(--paper);border-radius:8px;word-break:break-word;}
+.ro-value.ro-empty{color:var(--ink-soft);font-weight:400;font-style:italic;}
+
+/* ===== Fill mode ===== */
+.fill-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;background:#fff;color:var(--ink);}
+.fill-field{position:absolute;}
+.fill-input{
+  width:100%;height:100%;border:none;border-bottom:2px solid var(--ink-soft);background:transparent;
+  font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--ink);padding:0 2px;
+}
+.fill-input:focus{outline:none;border-bottom-color:var(--accent);}
+.fill-checkbox{width:100%;height:100%;accent-color:var(--accent);transform:scale(1.3);}
+.custom-checkbox{
+  width:100%;height:100%;min-width:18px;min-height:18px;border:2px solid var(--ink-soft);border-radius:4px;
+  background:#fff;cursor:pointer;position:relative;box-sizing:border-box;
+}
+.custom-checkbox.checked{border-color:var(--accent);background:var(--accent-soft);}
+.custom-checkbox.checked::after{
+  content:'×';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:1.4em;line-height:1;font-weight:700;color:var(--accent);
+}
+.custom-checkbox:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.simple-checkbox-box{width:30px;height:30px;flex:none;}
+.checklist-group{display:flex;flex-direction:column;gap:2px;}
+.checklist-row{display:flex;align-items:center;gap:12px;padding:9px 4px;border-radius:6px;}
+.checklist-row:hover{background:var(--paper);}
+.checklist-row.field-missing{outline:2px solid var(--danger);outline-offset:0;}
+.checklist-box{width:24px;height:24px;flex:none;}
+.checklist-label{font-size:14px;color:var(--ink);}
+.signature-canvas{width:100%;height:100%;border-bottom:2px solid var(--type-signature);touch-action:none;}
+.sig-clear{
+  position:absolute;right:0;bottom:-22px;font-size:10.5px;border:none;background:none;color:var(--ink-soft);
+  text-decoration:underline;padding:2px;
+}
+
+/* Simplified fill view */
+.simple-field{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+.simple-field label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--ink);margin-bottom:9px;}
+.simple-field .type-dot{width:8px;height:8px;border-radius:3px;flex:none;}
+.simple-input{
+  width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;
+  font-family:'IBM Plex Sans',sans-serif;font-size:15px;color:var(--ink);background:var(--paper);
+}
+.simple-input:focus{outline:none;border-color:var(--accent);background:#fff;}
+.simple-checkbox-row{display:flex;align-items:center;gap:10px;}
+.simple-checkbox-row input{width:22px;height:22px;accent-color:var(--accent);}
+.simple-sig-canvas{width:100%;height:130px;border:1px solid var(--line);border-radius:8px;background:var(--paper);touch-action:none;display:block;}
+.simple-page-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);margin-bottom:4px;}
+.simple-heading{
+  font-family:'Fraunces',serif;font-weight:600;font-size:16px;color:var(--ink);
+  margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);
+}
+.simple-heading:first-child{margin-top:0;}
+.success-banner{
+  background:#E7EFE9;border:1px solid #C7DACB;color:var(--success);border-radius:var(--radius);
+  padding:24px;text-align:center;display:none;
+}
+.success-banner h2{color:var(--success);margin-bottom:6px;}
+
+/* ===== Dashboard ===== */
+.dash-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+.dash-toolbar input[type=text]{padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;flex:1;min-width:180px;}
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:600px;}
+th{
+  text-align:left;padding:10px 14px;background:var(--paper);border-bottom:1px solid var(--line);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);
+  cursor:pointer;white-space:nowrap;position:sticky;top:0;
+}
+th:hover{color:var(--ink);}
+td{padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#FAF9F6;}
+.doc-btn{
+  display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:#7A5C18;
+  border:1px solid #E1CE9C;border-radius:6px;padding:4px 9px;font-size:11.5px;font-weight:500;
+}
+.check-yes{color:var(--success);font-weight:600;}
+
+/* ===== Modal ===== */
+.modal-backdrop{
+  display:none;position:fixed;inset:0;background:rgba(20,21,25,.55);z-index:100;
+  align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto;
+}
+.modal-backdrop.active{display:flex;}
+.modal-box{background:var(--paper);border-radius:12px;max-width:760px;width:100%;padding:20px;}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.modal-close{border:none;background:var(--surface);border-radius:50%;width:30px;height:30px;font-size:16px;border:1px solid var(--line);}
+.ro-field{position:absolute;display:flex;align-items:flex-end;padding-bottom:1px;}
+.ro-text{font-size:13px;color:var(--ink);border-bottom:1.5px solid var(--ink);font-weight:500;width:100%;}
+.ro-check{font-size:22px;color:var(--success);font-weight:800;}
+.ro-sig img{max-width:100%;max-height:100%;}
+
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:10px 18px;border-radius:8px;font-size:13px;z-index:200;opacity:0;transition:opacity .25s;pointer-events:none;
+}
+.toast.show{opacity:1;}
+
+.spinner-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);}
+.spinner{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+#fabTryParticipant{
+  position:fixed;bottom:18px;right:18px;z-index:60;
+  background:var(--accent);color:#fff;border:none;border-radius:999px;
+  padding:13px 18px;font-weight:600;font-size:13px;font-family:'IBM Plex Sans',sans-serif;
+  box-shadow:0 6px 20px rgba(20,33,61,.28);cursor:pointer;
+}
+#fabTryParticipant:active{background:#A2761F;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <svg class="logo-mark" viewBox="0 0 120 40" width="46" height="15">
+        <path d="M2 30 C 10 5, 18 5, 24 22 C 28 34, 34 34, 38 18 C 42 4, 50 4, 54 20 C 58 32, 64 30, 70 14 C 74 4, 82 4, 86 16 C 90 26, 96 24, 100 12 C 104 4, 112 4, 118 10"
+          fill="none" stroke="#B8862E" stroke-width="3" stroke-linecap="round" pathLength="1"/>
+      </svg>
+      <div class="brand-text">
+        <strong>Griffe</strong>
+        <span>PDF → FORMULAIRE</span>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="create">Créateur</button>
+      <button class="tab-btn" data-tab="fill">Aperçu destinataire</button>
+      <button class="tab-btn" data-tab="dashboard">Tableau de bord</button>
+    </div>
+  </div>
+</header>
+
+<div class="notice">
+  <div class="notice-inner">
+    Version de démarrage — tous les formulaires et réponses sont stockés dans une seule base de données partagée (pas encore de comptes séparés par organisation). Ajoute une authentification avant d'inviter d'autres personnes à créer des formulaires.
+  </div>
+</div>
+
+<main>
+
+  <!-- ===================== CREATE TAB ===================== -->
+  <section class="view active" id="view-create">
+    <div id="uploadZoneWrap">
+      <label class="upload-zone" id="uploadZone" for="fileInput">
+        <strong>Dépose un PDF ici</strong>, ou clique pour en choisir un.<br>
+        <span style="font-size:12.5px;">Le contrat, formulaire ou questionnaire à transformer.</span><br>
+        <span class="btn btn-primary" style="margin-top:14px;pointer-events:none;">Choisir un fichier PDF</span>
+        <input type="file" id="fileInput" accept="application/pdf">
+      </label>
+    </div>
+
+    <div id="createLayout" class="create-layout" style="display:none;">
+      <div style="min-width:0;">
+        <div class="create-dual">
+          <div class="create-pane">
+            <div class="create-pane-header">Formulaire simplifié</div>
+            <div id="createSimpleList"></div>
+          </div>
+          <div class="create-pane">
+            <div class="create-pane-header">Document original (PDF) — clique un champ à gauche pour le localiser ici</div>
+            <div class="pages-col" id="pagesCol"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <div class="card">
+          <h3>Formulaire</h3>
+          <div class="field-group">
+            <label>Titre</label>
+            <input type="text" id="formTitleInput" placeholder="Ex. Contrat mandataire — avril 2026">
+          </div>
+          <button class="btn btn-accent" id="detectBtn" style="width:100%;justify-content:center;">Détecter les champs automatiquement</button>
+          <div id="detectStatus" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="card">
+          <h3>Ajouter un champ manuellement</h3>
+          <div class="toolbar-grid">
+            <button class="type-btn" data-type="text"><span class="type-dot" style="background:var(--type-text);"></span>Texte</button>
+            <button class="type-btn" data-type="date"><span class="type-dot" style="background:var(--type-date);"></span>Date</button>
+            <button class="type-btn" data-type="checkbox"><span class="type-dot" style="background:var(--type-checkbox);"></span>Case à cocher</button>
+            <button class="type-btn" data-type="signature"><span class="type-dot" style="background:var(--type-signature);"></span>Signature</button>
+            <button class="type-btn" data-type="heading" style="grid-column:1/-1;"><span class="type-dot" style="background:var(--type-heading);"></span>Titre / instruction (contexte)</button>
+          </div>
+          <p style="font-size:11.5px;color:var(--ink-soft);margin:10px 0 0;">Ces boutons ajoutent à la toute fin du document. Pour insérer précisément entre deux éléments, survole la liste à gauche et clique le <strong>+</strong> qui apparaît. Les flèches ▲▼ sur chaque champ permettent aussi de le déplacer.</p>
+        </div>
+
+        <div class="card">
+          <h3>État</h3>
+          <p class="status-line" id="statusLine">0 page · 0 champ</p>
+          <p class="status-line" id="removedBlocksInfo" style="display:none;color:var(--danger);margin-top:6px;"></p>
+          <button class="btn btn-primary" id="saveBtn" style="width:100%;justify-content:center;margin-top:10px;">Enregistrer et générer le lien</button>
+          <div id="shareBoxWrap"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FILL TAB ===================== -->
+  <section class="view" id="view-fill">
+    <div class="fill-toolbar">
+      <select id="fillFormSelect"><option value="">— Choisir un formulaire —</option></select>
+      <span class="status-line" id="fillStatusLine"></span>
+      <div class="tabs" id="fillViewToggle" style="display:none;">
+        <button class="subtab-btn active" data-view="simple">Formulaire simplifié</button>
+        <button class="subtab-btn" data-view="overlay">Document original</button>
+      </div>
+    </div>
+
+    <div id="fillEmptyState" class="empty-state">Choisis un formulaire ci-dessus pour simuler ce que verrait un destinataire.</div>
+
+    <div id="fillFormArea" style="display:none;">
+      <div id="fillSimpleView"></div>
+      <div class="pages-col" id="fillPages" style="display:none;"></div>
+      <button class="btn btn-primary" id="submitFillBtn" style="margin-top:16px;">Envoyer mes réponses</button>
+    </div>
+
+    <div class="success-banner" id="fillSuccessMsg">
+      <h2>Réponse envoyée</h2>
+      <p>Cette soumission apparaît maintenant dans le tableau de bord.</p>
+    </div>
+  </section>
+
+  <!-- ===================== DASHBOARD TAB ===================== -->
+  <section class="view" id="view-dashboard">
+    <div class="dash-toolbar">
+      <select id="dashFormSelect"><option value="">— Choisir un formulaire —</option></select>
+      <input type="text" id="dashSearch" placeholder="Rechercher dans les réponses…">
+    </div>
+    <div id="dashEmptyState" class="empty-state">Choisis un formulaire pour voir ses réponses.</div>
+    <div class="table-wrap" id="dashTableWrap" style="display:none;">
+      <table id="dashTable"><thead></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+</main>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Document rempli</h3>
+      <button class="modal-close" id="modalClose">×</button>
+    </div>
+    <div class="pages-col" id="modalPages"></div>
+  </div>
+</div>
+
+<button id="fabTryParticipant" title="Essayer comme un participant">📱 Essayer comme participant</button>
+<div class="toast" id="toast"></div>
+
+<script>
+window.addEventListener('error', function(e){
+  console.error('Erreur globale capturée:', e.error || e.message);
+  try{ showToast('Erreur : ' + (e.message || 'voir la console du navigateur')); }catch(_){}
+});
+
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+} else {
+  console.error('pdfjsLib ne s\'est pas chargé depuis cdnjs.');
+}
+
+const TYPE_LABELS = {text:'TEXTE', date:'DATE', checkbox:'CASE', signature:'SIGNATURE', heading:'CONTEXTE'};
+const DEFAULTS = {text:{w:26,h:4.5}, date:{w:15,h:4.5}, checkbox:{w:4,h:4}, signature:{w:26,h:9}, heading:{w:80,h:3.5}};
+const SIZE_PRESETS = {
+  text:      { s:{w:13,h:2.4},  m:{w:22,h:3.6},       l:{w:85,h:14} },
+  date:      { s:{w:10,h:2.4},  m:{w:14,h:3.6},       l:{w:28,h:4.5} },
+  checkbox:  { s:{w:2.2,h:2.2}, m:{w:3,h:3},          l:{w:4.5,h:4.5} },
+  signature: { s:{w:16,h:5.5},  m:DEFAULTS.signature, l:{w:40,h:11} },
+  heading:   { s:{w:50,h:3},    m:DEFAULTS.heading,   l:{w:90,h:5} }
+};
+
+const state = {
+  pdfPages: [],
+  fields: [],
+  pageOverlays: [],
+  placingType: null,
+  currentFormId: null,
+  fillForm: null,
+  fillValues: {},
+  fillPageOverlays: [],
+  fillViewMode: 'simple'
+};
+
+function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ---------- storage helpers (Supabase-backed key/value table) ---------- */
+let supabaseClient = null;
+const supabaseReady = (async () => {
+  try{
+    const res = await fetch('/api/config');
+    const cfg = await res.json();
+    if(!cfg.supabaseUrl || !cfg.supabaseAnonKey){
+      console.error('Config Supabase manquante — vérifie les variables d\u2019environnement SUPABASE_URL / SUPABASE_ANON_KEY sur Vercel.');
+      return;
+    }
+    supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+  }catch(e){
+    console.error('Impossible de charger la configuration Supabase (/api/config).', e);
+  }
+})();
+
+async function storageSet(key, value, shared=true){
+  try{
+    await supabaseReady;
+    if(!supabaseClient) return null;
+    const { error } = await supabaseClient.from('kv_store').upsert({ key, value });
+    if(error) throw error;
+    return true;
+  }catch(e){ console.error('storage.set', e); return null; }
+}
+async function storageGet(key, shared=true){
+  try{
+    await supabaseReady;
+    if(!supabaseClient) return null;
+    const { data, error } = await supabaseClient.from('kv_store').select('value').eq('key', key).maybeSingle();
+    if(error) throw error;
+    return data ? data.value : null;
+  }catch(e){ console.error('storage.get', e); return null; }
+}
+async function storageList(prefix, shared=true){
+  try{
+    await supabaseReady;
+    if(!supabaseClient) return [];
+    const { data, error } = await supabaseClient.from('kv_store').select('key').like('key', prefix+'%');
+    if(error) throw error;
+    return data ? data.map(r=>r.key) : [];
+  }catch(e){ console.error('storage.list', e); return []; }
+}
+async function storageDelete(key, shared=true){
+  try{
+    await supabaseReady;
+    if(!supabaseClient) return null;
+    const { error } = await supabaseClient.from('kv_store').delete().eq('key', key);
+    if(error) throw error;
+    return true;
+  }catch(e){ console.error('storage.delete', e); return null; }
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='fill') refreshFillDropdown();
+    if(btn.dataset.tab==='dashboard') refreshDashDropdown();
+  });
+});
+function goToTab(name){ document.querySelector('.tab-btn[data-tab="'+name+'"]').click(); }
+
+/* ===================== CREATE: upload & render ===================== */
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+['dragover','dragenter'].forEach(ev=>uploadZone.addEventListener(ev, e=>{e.preventDefault(); uploadZone.style.borderColor='#B8862E';}));
+['dragleave','drop'].forEach(ev=>uploadZone.addEventListener(ev, e=>{e.preventDefault(); uploadZone.style.borderColor='';}));
+uploadZone.addEventListener('drop', e=>{
+  const f = e.dataTransfer.files[0];
+  if(f) handleFile(f);
+});
+fileInput.addEventListener('change', e=>{
+  if(e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+/* ---------- Extraction du texte réel du PDF (pour la retranscription) ---------- */
+async function buildPageTranscript(page, viewport, pageHeightPx){
+  const textContent = await page.getTextContent();
+  const raw = textContent.items
+    .filter(it=>it.str && it.str.trim().length>0)
+    .map(it=>{
+      const tx = pdfjsLib.Util.transform(viewport.transform, it.transform);
+      return { str: it.str, x: tx[4], y: tx[5], h: Math.hypot(tx[2], tx[3]) };
+    });
+  if(!raw.length) return [];
+  raw.sort((a,b)=> a.y-b.y || a.x-b.x);
+  const Y_TOL = 4;
+  const lines = [];
+  raw.forEach(it=>{
+    let line = lines.find(l=> Math.abs(l.y - it.y) <= Y_TOL);
+    if(!line){ line = { y: it.y, items: [], h: it.h }; lines.push(line); }
+    line.items.push(it);
+    line.h = Math.max(line.h, it.h);
+  });
+  lines.forEach(l=>{ l.items.sort((a,b)=>a.x-b.x); l.text = l.items.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim(); });
+  const validLines = lines.filter(l=>l.text.length>0).sort((a,b)=>a.y-b.y);
+  if(!validLines.length) return [];
+  const sortedH = validLines.map(l=>l.h).sort((a,b)=>a-b);
+  const medianH = sortedH[Math.floor(sortedH.length/2)] || 10;
+
+  const blocks = [];
+  let current = null, prevY = null;
+  validLines.forEach(l=>{
+    const isHeading = l.h > medianH*1.22;
+    const bigGap = prevY!=null && (l.y - prevY) > medianH*1.25;
+    if(isHeading){
+      if(current){ blocks.push(current); current = null; }
+      blocks.push({type:'heading', text:l.text, y:l.y});
+    } else if(!current || bigGap){
+      if(current) blocks.push(current);
+      current = {type:'paragraph', text:l.text, y:l.y};
+    } else {
+      current.text += ' ' + l.text;
+    }
+    prevY = l.y;
+  });
+  if(current) blocks.push(current);
+  blocks.forEach(b=>{ b.yPct = clamp(b.y / pageHeightPx * 100, 0, 100); b.consumed = false; });
+  return blocks;
+}
+
+function normText(s){ return (s||'').toLowerCase().replace(/[^a-z0-9à-öø-ÿ]+/g,' ').trim(); }
+
+function markConsumedBlocksGeneric(pages, fields, pageIndex){
+  const page = pages[pageIndex];
+  if(!page || !page.transcript) return;
+  const blocks = page.transcript;
+  blocks.forEach(b=>{ b.consumed = false; });
+  fields.filter(f=>f.page===pageIndex && f.type!=='heading').forEach(f=>{
+    const fLabel = normText(f.label);
+    if(!fLabel) return;
+    let best=null, bestDist=Infinity;
+    blocks.forEach(b=>{
+      if(b.consumed) return;
+      const bText = normText(b.text);
+      if(!bText) return;
+      const closeMatch = bText===fLabel ||
+        (bText.includes(fLabel) && bText.length <= fLabel.length*3) ||
+        (fLabel.includes(bText) && fLabel.length <= bText.length*3);
+      if(closeMatch){
+        const dist = Math.abs(b.yPct - f.y);
+        if(dist < bestDist){ bestDist = dist; best = b; }
+      }
+    });
+    if(best && bestDist < 8) best.consumed = true;
+  });
+}
+
+function getPageTimelineGeneric(pages, fields, pageIndex){
+  const page = pages[pageIndex];
+  const blocks = (page && page.transcript || []).filter(b=>!b.consumed && !b.removed);
+  const pageFields = fields.filter(f=>f.page===pageIndex);
+  const items = [
+    ...blocks.map(b=>({kind:'block', y:b.yPct, block:b})),
+    ...pageFields.map(f=>({kind:'field', y:f.y, field:f}))
+  ];
+  items.sort((a,b)=>a.y-b.y);
+  return items;
+}
+
+function markConsumedBlocksForPage(pageIndex){
+  markConsumedBlocksGeneric(state.pdfPages, state.fields, pageIndex);
+}
+
+function getPageTimeline(pageIndex){
+  return getPageTimelineGeneric(state.pdfPages, state.fields, pageIndex);
+}
+
+async function handleFile(file){
+  if(typeof pdfjsLib === 'undefined'){
+    document.getElementById('uploadZoneWrap').innerHTML =
+      '<div class="upload-zone" style="cursor:default;"><strong>La librairie de lecture PDF n\'a pas pu se charger.</strong><br>'+
+      'Le réseau de cet aperçu bloque probablement cdnjs.cloudflare.com. Essaie de recharger la page, ou ouvre le fichier .html directement dans ton navigateur (hors de Claude) en le téléchargeant d\'abord.</div>';
+    return;
+  }
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  if(!isPdf){ showToast('Merci de choisir un fichier PDF.'); return; }
+  document.getElementById('uploadZone').innerHTML = '<div class="spinner-row" style="justify-content:center;"><div class="spinner"></div> Chargement du PDF…</div>';
+  try{
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    state.pdfPages = [];
+    for(let i=1;i<=pdf.numPages;i++){
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({scale: 1.4});
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
+      let transcript = [];
+      try{ transcript = await buildPageTranscript(page, viewport, viewport.height); }
+      catch(e){ console.warn('Extraction de texte échouée pour la page '+i, e); }
+      state.pdfPages.push({canvas, width: viewport.width, height: viewport.height, transcript});
+    }
+    state.fields = [];
+    state.currentFormId = null;
+    document.getElementById('formTitleInput').value = file.name.replace(/\.pdf$/i,'');
+    document.getElementById('uploadZoneWrap').style.display = 'none';
+    document.getElementById('createLayout').style.display = 'grid';
+    document.getElementById('shareBoxWrap').innerHTML = '';
+    renderCreatePages();
+    renderCreateSimpleList();
+  }catch(err){
+    console.error(err);
+    document.getElementById('uploadZone').innerHTML = '<strong>Erreur de lecture du PDF.</strong> Réessaie avec un autre fichier.';
+  }
+}
+
+function renderCreatePages(){
+  const col = document.getElementById('pagesCol');
+  col.innerHTML = '';
+  state.pageOverlays = [];
+  state.pdfPages.forEach((p, idx)=>{
+    const wrap = document.createElement('div'); wrap.className = 'page-container';
+    wrap.appendChild(p.canvas);
+    const overlay = document.createElement('div'); overlay.className = 'page-overlay';
+    wrap.appendChild(overlay);
+    overlay.addEventListener('click', e=>{
+      if(!state.placingType) return;
+      if(e.target.closest('.field-box')) return;
+      const rect = overlay.getBoundingClientRect();
+      const x = (e.clientX-rect.left)/rect.width*100;
+      const y = (e.clientY-rect.top)/rect.height*100;
+      placeField(state.placingType, idx, x, y, overlay);
+      state.placingType = null;
+      document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active-field'));
+    });
+    col.appendChild(wrap);
+    state.pageOverlays[idx] = overlay;
+  });
+  updateStatusLine();
+}
+
+function findOverlayEl(f){
+  const overlay = state.pageOverlays[f.page];
+  return overlay ? overlay.querySelector('[data-id="'+f.id+'"]') : null;
+}
+function syncOverlayLabel(f){
+  const el = findOverlayEl(f);
+  const input = el && el.querySelector('.field-label-input');
+  if(input && input.value !== f.label) input.value = f.label;
+}
+function syncOverlayRequired(f){
+  const el = findOverlayEl(f);
+  if(!el) return;
+  el.classList.toggle('field-required', !!f.required);
+  const btn = el.querySelector('.field-req');
+  if(btn) btn.classList.toggle('active', !!f.required);
+}
+function recreateOverlayField(f){
+  const oldEl = findOverlayEl(f);
+  if(oldEl) oldEl.remove();
+  const overlay = state.pageOverlays[f.page];
+  if(overlay) overlay.appendChild(createFieldElement(f, overlay));
+}
+function moveFieldToPage(f, newPage){
+  const oldEl = findOverlayEl(f);
+  if(oldEl) oldEl.remove();
+  f.page = newPage;
+  const overlay = state.pageOverlays[f.page];
+  if(overlay) overlay.appendChild(createFieldElement(f, overlay));
+}
+
+function renderCreateSimpleList(){
+  const container = document.getElementById('createSimpleList');
+  if(!container) return;
+  container.innerHTML = '';
+  if(!state.pdfPages.length){
+    container.innerHTML = '<div class="csc-empty">Charge un PDF pour commencer.</div>';
+    return;
+  }
+  let any = false;
+  for(let p=0; p<state.pdfPages.length; p++){
+    const timeline = getPageTimeline(p);
+    if(!timeline.length) continue;
+    any = true;
+    const tag = document.createElement('div'); tag.className='simple-page-tag'; tag.textContent='PAGE '+(p+1);
+    container.appendChild(tag);
+    container.appendChild(buildInsertPoint(p, null, timeline[0]));
+    timeline.forEach((item, idx)=>{
+      if(item.kind==='block'){
+        container.appendChild(buildTranscriptBlockEl(item.block, true));
+      } else {
+        container.appendChild(buildCreateSimpleCard(item.field));
+      }
+      container.appendChild(buildInsertPoint(p, item, timeline[idx+1] || null));
+    });
+  }
+  if(!any){
+    container.innerHTML = '<div class="csc-empty">Aucun texte ni champ pour l\u2019instant. Utilise « Détecter les champs automatiquement », ou ajoute-en un avec les boutons ci-contre.</div>';
+  }
+  refreshRemovedBlocksInfo();
+}
+
+function timelineItemY(item){ return item.kind==='block' ? item.block.yPct : item.field.y; }
+
+function buildInsertPoint(pageIndex, beforeItem, afterItem){
+  const wrap = document.createElement('div'); wrap.className='insert-point';
+  const btn = document.createElement('button'); btn.type='button'; btn.className='insert-plus'; btn.textContent='+';
+  btn.title = 'Insérer un champ ici';
+  const menu = document.createElement('div'); menu.className='insert-menu';
+  const types = [['text','Texte'],['date','Date'],['checkbox','Case à cocher'],['signature','Signature'],['heading','Titre / instruction']];
+  types.forEach(([t,label])=>{
+    const b = document.createElement('button'); b.type='button'; b.className='insert-menu-btn'; b.textContent=label;
+    b.addEventListener('click', e=>{
+      e.stopPropagation();
+      const beforeY = beforeItem ? timelineItemY(beforeItem) : 0;
+      const afterY = afterItem ? timelineItemY(afterItem) : 100;
+      const y = (beforeY + afterY) / 2;
+      const overlay = state.pageOverlays[pageIndex];
+      placeField(t, pageIndex, 30, y, overlay);
+      markConsumedBlocksForPage(pageIndex);
+      renderCreateSimpleList();
+      showToast('Champ inséré.');
+    });
+    menu.appendChild(b);
+  });
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    const willOpen = !menu.classList.contains('open');
+    document.querySelectorAll('.insert-menu.open').forEach(m=>m.classList.remove('open'));
+    menu.classList.toggle('open', willOpen);
+  });
+  wrap.appendChild(btn);
+  wrap.appendChild(menu);
+  return wrap;
+}
+document.addEventListener('click', ()=>{
+  document.querySelectorAll('.insert-menu.open').forEach(m=>m.classList.remove('open'));
+});
+
+function buildTranscriptBlockEl(block, editable){
+  const wrap = document.createElement('div');
+  wrap.className = 'transcript-block-wrap';
+  const el = document.createElement('div');
+  el.className = block.type==='heading' ? 'transcript-heading' : 'transcript-paragraph';
+  el.textContent = block.text;
+  wrap.appendChild(el);
+  if(editable){
+    const delBtn = document.createElement('button');
+    delBtn.type='button'; delBtn.className='transcript-del-btn'; delBtn.textContent='×';
+    delBtn.title = 'Retirer cette section du formulaire';
+    delBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      block.removed = true;
+      renderCreateSimpleList();
+    });
+    wrap.appendChild(delBtn);
+  }
+  return wrap;
+}
+
+function countRemovedBlocks(){
+  let n = 0;
+  state.pdfPages.forEach(p=>(p.transcript||[]).forEach(b=>{ if(b.removed) n++; }));
+  return n;
+}
+function restoreRemovedBlocks(){
+  state.pdfPages.forEach(p=>(p.transcript||[]).forEach(b=>{ b.removed=false; }));
+  renderCreateSimpleList();
+}
+function refreshRemovedBlocksInfo(){
+  const el = document.getElementById('removedBlocksInfo');
+  if(!el) return;
+  const n = countRemovedBlocks();
+  if(n>0){
+    el.style.display='block';
+    el.innerHTML = n+' section(s) de texte retirée(s). <button class="btn btn-sm" id="restoreBlocksBtn">Tout restaurer</button>';
+    document.getElementById('restoreBlocksBtn').addEventListener('click', restoreRemovedBlocks);
+  } else {
+    el.style.display='none'; el.innerHTML='';
+  }
+}
+
+function moveFieldInTimeline(f, direction){
+  const timeline = getPageTimeline(f.page);
+  const idx = timeline.findIndex(it=>it.kind==='field' && it.field.id===f.id);
+  if(idx===-1) return;
+  const targetIdx = idx + direction;
+  if(targetIdx<0 || targetIdx>=timeline.length) return;
+  const targetY = timelineItemY(timeline[targetIdx]);
+  if(direction<0){
+    const beforeY = targetIdx>0 ? timelineItemY(timeline[targetIdx-1]) : 0;
+    f.y = clamp((beforeY+targetY)/2, 0, 100-f.h);
+  } else {
+    const afterY = targetIdx<timeline.length-1 ? timelineItemY(timeline[targetIdx+1]) : 100;
+    f.y = clamp((targetY+afterY)/2, 0, 100-f.h);
+  }
+  recreateOverlayField(f);
+  markConsumedBlocksForPage(f.page);
+  renderCreateSimpleList();
+}
+
+function buildCreateSimpleCard(f){
+  const card = document.createElement('div');
+  card.className = 'create-simple-card' + (f.required ? ' required' : '') + (f.type==='heading' ? ' is-heading' : '');
+  card.dataset.id = f.id;
+  card.style.cursor = 'pointer';
+  card.title = 'Cliquer pour localiser ce champ sur le document';
+  card.addEventListener('click', e=>{
+    if(e.target.closest('input,select,button')) return;
+    const el = findOverlayEl(f);
+    if(el){
+      el.scrollIntoView({behavior:'smooth', block:'center'});
+      el.classList.remove('link-flash'); void el.offsetWidth; el.classList.add('link-flash');
+    }
+  });
+
+  const main = document.createElement('div'); main.className='csc-main';
+  const row1 = document.createElement('div'); row1.className='csc-row1';
+
+  const dot = document.createElement('span'); dot.className='type-dot';
+  dot.style.background='var(--type-'+f.type+')'; dot.style.width='10px'; dot.style.height='10px';
+  row1.appendChild(dot);
+
+  const labelInput = document.createElement('input'); labelInput.className='csc-label-input'; labelInput.value=f.label;
+  labelInput.addEventListener('pointerdown', e=>e.stopPropagation());
+  labelInput.addEventListener('input', e=>{ f.label = e.target.value; syncOverlayLabel(f); });
+  row1.appendChild(labelInput);
+
+  const typeSelect = document.createElement('select'); typeSelect.className='csc-type-select';
+  typeSelect.addEventListener('pointerdown', e=>e.stopPropagation());
+  ['text','date','checkbox','signature','heading'].forEach(t=>{
+    const opt = document.createElement('option'); opt.value=t; opt.textContent=TYPE_LABELS[t];
+    if(t===f.type) opt.selected = true;
+    typeSelect.appendChild(opt);
+  });
+  typeSelect.addEventListener('change', e=>{
+    f.type = e.target.value;
+    const preset = SIZE_PRESETS[f.type].m;
+    f.w = preset.w; f.h = preset.h;
+    recreateOverlayField(f);
+    markConsumedBlocksForPage(f.page);
+    renderCreateSimpleList();
+  });
+  row1.appendChild(typeSelect);
+
+  const pageWrap = document.createElement('span'); pageWrap.className='csc-page-wrap';
+  pageWrap.appendChild(document.createTextNode('p.'));
+  const pageInput = document.createElement('input'); pageInput.type='number'; pageInput.className='csc-page-input';
+  pageInput.min=1; pageInput.max=state.pdfPages.length; pageInput.value=f.page+1;
+  pageInput.addEventListener('pointerdown', e=>e.stopPropagation());
+  pageInput.addEventListener('change', e=>{
+    const oldPage = f.page;
+    const newPage = clamp((parseInt(e.target.value)||1)-1, 0, state.pdfPages.length-1);
+    moveFieldToPage(f, newPage);
+    markConsumedBlocksForPage(oldPage);
+    markConsumedBlocksForPage(newPage);
+    renderCreateSimpleList();
+  });
+  pageWrap.appendChild(pageInput);
+  row1.appendChild(pageWrap);
+
+  main.appendChild(row1);
+  card.appendChild(main);
+
+  const actions = document.createElement('div'); actions.className='csc-actions';
+
+  const moveUpBtn = document.createElement('button'); moveUpBtn.type='button'; moveUpBtn.className='csc-move-btn'; moveUpBtn.textContent='▲';
+  moveUpBtn.title = 'Déplacer vers le haut';
+  moveUpBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+  moveUpBtn.addEventListener('click', e=>{ e.stopPropagation(); moveFieldInTimeline(f, -1); });
+  actions.appendChild(moveUpBtn);
+  const moveDownBtn = document.createElement('button'); moveDownBtn.type='button'; moveDownBtn.className='csc-move-btn'; moveDownBtn.textContent='▼';
+  moveDownBtn.title = 'Déplacer vers le bas';
+  moveDownBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+  moveDownBtn.addEventListener('click', e=>{ e.stopPropagation(); moveFieldInTimeline(f, 1); });
+  actions.appendChild(moveDownBtn);
+
+  if(f.type !== 'heading'){
+    const reqBtn = document.createElement('button'); reqBtn.type='button';
+    reqBtn.className='csc-req-btn'+(f.required?' active':''); reqBtn.textContent='*'; reqBtn.title='Obligatoire';
+    reqBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+    reqBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      f.required = !f.required;
+      reqBtn.classList.toggle('active', f.required);
+      card.classList.toggle('required', f.required);
+      syncOverlayRequired(f);
+    });
+    actions.appendChild(reqBtn);
+  }
+
+  const delBtn = document.createElement('button'); delBtn.type='button'; delBtn.className='csc-del-btn'; delBtn.textContent='×';
+  delBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+  delBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    state.fields = state.fields.filter(x=>x.id!==f.id);
+    const el = findOverlayEl(f);
+    if(el) el.remove();
+    markConsumedBlocksForPage(f.page);
+    renderCreateSimpleList();
+    updateStatusLine();
+  });
+  actions.appendChild(delBtn);
+  card.appendChild(actions);
+
+  return card;
+}
+
+document.querySelectorAll('.type-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(!state.pdfPages.length){ showToast('Charge un PDF d\u2019abord.'); return; }
+    const pageIdx = state.pdfPages.length - 1;
+    const overlay = state.pageOverlays[pageIdx];
+    if(!overlay) return;
+    const stack = state.fields.filter(f=>f.page===pageIdx).length % 6;
+    placeField(btn.dataset.type, pageIdx, 30, 90 - stack*3, overlay);
+    markConsumedBlocksForPage(pageIdx);
+    renderCreateSimpleList();
+    showToast('Champ ajouté à la fin du document.');
+  });
+});
+
+function mostVisiblePageIndex(){
+  let best = 0, bestVisible = -Infinity;
+  state.pageOverlays.forEach((ov, i)=>{
+    if(!ov || !ov.parentElement) return;
+    const rect = ov.parentElement.getBoundingClientRect();
+    const visible = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 80);
+    if(visible > bestVisible){ bestVisible = visible; best = i; }
+  });
+  return best;
+}
+
+function placeField(type, page, xPct, yPct, overlay){
+  const d = DEFAULTS[type];
+  const f = {
+    id: uid(), page, type,
+    label: type==='checkbox'?'Case': type==='signature'?'Signature': type==='date'?'Date':'Champ texte',
+    x: clamp(xPct-d.w/2, 0, 100-d.w), y: clamp(yPct-d.h/2, 0, 100-d.h), w: d.w, h: d.h
+  };
+  state.fields.push(f);
+  overlay.appendChild(createFieldElement(f, overlay));
+  updateStatusLine();
+}
+
+function createFieldElement(field, overlay){
+  const el = document.createElement('div');
+  el.className = 'field-box field-'+field.type;
+  el.dataset.id = field.id;
+  el.style.left = field.x+'%'; el.style.top = field.y+'%';
+  el.style.width = field.w+'%'; el.style.height = field.h+'%';
+
+  const tag = document.createElement('span');
+  tag.className = 'field-tag'; tag.textContent = TYPE_LABELS[field.type];
+  tag.style.cursor = 'pointer';
+  tag.title = 'Cliquer pour localiser ce champ dans la liste';
+  tag.addEventListener('pointerdown', e=>e.stopPropagation());
+  tag.addEventListener('click', e=>{
+    e.stopPropagation();
+    const cardEl = document.querySelector('.create-simple-card[data-id="'+field.id+'"]');
+    if(cardEl){
+      cardEl.scrollIntoView({behavior:'smooth', block:'center'});
+      cardEl.classList.remove('link-flash'); void cardEl.offsetWidth; cardEl.classList.add('link-flash');
+    }
+  });
+  el.appendChild(tag);
+
+  const labelInput = document.createElement('input');
+  labelInput.className = 'field-label-input'; labelInput.value = field.label;
+  labelInput.addEventListener('pointerdown', e=>e.stopPropagation());
+  labelInput.addEventListener('input', e=>{ field.label = e.target.value; });
+  el.appendChild(labelInput);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'field-del'; delBtn.textContent = '×'; delBtn.type = 'button';
+  delBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+  delBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    state.fields = state.fields.filter(f=>f.id !== field.id);
+    el.remove(); updateStatusLine();
+  });
+  el.appendChild(delBtn);
+
+  const reqBtn = document.createElement('button');
+  reqBtn.className = 'field-req' + (field.required ? ' active' : '');
+  reqBtn.textContent = '*'; reqBtn.type = 'button';
+  reqBtn.title = 'Marquer ce champ comme obligatoire';
+  reqBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+  reqBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    field.required = !field.required;
+    reqBtn.classList.toggle('active', field.required);
+    el.classList.toggle('field-required', field.required);
+  });
+  el.appendChild(reqBtn);
+  if(field.required) el.classList.add('field-required');
+
+  const resizeHandle = document.createElement('div');
+  resizeHandle.className = 'resize-handle';
+  el.appendChild(resizeHandle);
+
+  el.addEventListener('pointerdown', e=>{
+    if(e.target===delBtn || e.target===labelInput || e.target===resizeHandle || e.target===reqBtn) return;
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    const rect = overlay.getBoundingClientRect();
+    const startX=e.clientX, startY=e.clientY, startLeft=field.x, startTop=field.y;
+    function onMove(ev){
+      const dx=(ev.clientX-startX)/rect.width*100, dy=(ev.clientY-startY)/rect.height*100;
+      field.x = clamp(startLeft+dx, 0, 100-field.w);
+      field.y = clamp(startTop+dy, 0, 100-field.h);
+      el.style.left = field.x+'%'; el.style.top = field.y+'%';
+    }
+    function onUp(){ el.removeEventListener('pointermove', onMove); el.removeEventListener('pointerup', onUp); }
+    el.addEventListener('pointermove', onMove); el.addEventListener('pointerup', onUp);
+  });
+
+  resizeHandle.addEventListener('pointerdown', e=>{
+    e.stopPropagation(); e.preventDefault();
+    resizeHandle.setPointerCapture(e.pointerId);
+    const rect = overlay.getBoundingClientRect();
+    const startX=e.clientX, startY=e.clientY, startW=field.w, startH=field.h;
+    function onMove(ev){
+      const dw=(ev.clientX-startX)/rect.width*100, dh=(ev.clientY-startY)/rect.height*100;
+      field.w = clamp(startW+dw, 4, 100-field.x);
+      field.h = clamp(startH+dh, 3, 100-field.y);
+      el.style.width = field.w+'%'; el.style.height = field.h+'%';
+    }
+    function onUp(){ resizeHandle.removeEventListener('pointermove', onMove); resizeHandle.removeEventListener('pointerup', onUp); }
+    resizeHandle.addEventListener('pointermove', onMove); resizeHandle.addEventListener('pointerup', onUp);
+  });
+
+  return el;
+}
+
+function updateStatusLine(){
+  document.getElementById('statusLine').textContent = state.pdfPages.length+' page(s) · '+state.fields.length+' champ(s)';
+}
+
+/* ---------- AI detection ---------- */
+function downscaleCanvas(canvas, maxWidth){
+  if(canvas.width <= maxWidth) return canvas;
+  const scale = maxWidth/canvas.width;
+  const c2 = document.createElement('canvas');
+  c2.width = maxWidth; c2.height = Math.round(canvas.height*scale);
+  c2.getContext('2d').drawImage(canvas, 0, 0, c2.width, c2.height);
+  return c2;
+}
+
+const DETECT_PROMPT = "Tu es un assistant qui prépare un document PDF pour qu'il devienne un formulaire numérique. Analyse l'image comme le ferait une personne qui doit remplir ce document à la main, en cherchant activement ces indices visuels précis :\n"+
+"1) Un RECTANGLE ou une BOÎTE avec un contour/bordure visible et vide à l'intérieur : si un mot comme 'Signature' ou 'Signé par' apparaît juste avant/au-dessus, type=\"signature\" ; sinon type=\"text\" (ou \"date\" si le mot associé est clairement une date).\n"+
+"2) Une PETITE case carrée (☐, □, un petit carré dessiné, ou une case de type ' [ ] ') : type=\"checkbox\". Positionne le champ EXACTEMENT sur la petite case elle-même, jamais sur le texte à côté.\n"+
+"3) Une LIGNE HORIZONTALE, une suite de tirets/underscores (_______) ou de pointillés laissée vide, en particulier après une mention comme 'Nom :', 'Date :', 'Adresse :', 'Signature :' : positionne le champ sur l'espace vide au-dessus ou sur la ligne, jamais sur le mot lui-même. type=\"text\" ou \"date\" selon le mot associé.\n"+
+"4) Un espace clairement vide après un deux-points, sans ligne ni boîte dessinée, mais où une réponse est manifestement attendue (ex. un formulaire avec des libellés alignés) : type=\"text\".\n"+
+"5) Un TABLEAU à deux colonnes où la colonne de gauche contient un libellé (ex. 'Prénom', 'Nom', 'Courriel', 'Adresse') et la cellule de droite, sur la même ligne, est vide : crée un champ type=\"text\" positionné sur la cellule vide de droite, avec le libellé de la colonne de gauche comme \"label\". Traite chaque ligne du tableau comme un champ séparé.\n"+
+"6) Une liste d'éléments (ex. des postes, des compétences, des options) chacun suivi d'une petite case ou d'un petit rectangle vide aligné à droite du texte : crée un champ type=\"checkbox\" par ligne, positionné sur la petite case elle-même.\n"+
+"Utilise le texte le plus proche comme \"label\". GARDE CHAQUE LABEL TRÈS COURT (1 à 4 mots maximum, ex. 'Nom :' -> \"Nom\").\n"+
+"Ignore complètement : le texte légal/informatif qui ne demande aucune saisie, les tableaux ou sections déjà remplis avec des données, les logos, les titres de section (ils sont gérés séparément).\n"+
+"Sois exhaustif — passe en revue TOUTE l'image avant de conclure qu'il n'y a rien à détecter.\n"+
+"Pour une liste de plusieurs éléments similaires alignés verticalement : fais correspondre l'espacement vertical entre chaque champ à l'espacement RÉEL visible entre les lignes correspondantes sur l'image.\n"+
+"Pour chaque champ, donne uniquement le CENTRE de l'espace vide (pas le coin, pas de largeur ni hauteur précise) et une taille relative. Réponds UNIQUEMENT avec un JSON valide, COMPACT (sans espaces superflus), sans aucun texte avant ou après, sans balises markdown, au format exact suivant: {\"fields\":[{\"type\":\"text\",\"label\":\"Nom\",\"x\":45,\"y\":88,\"size\":\"m\"}]}. Le type doit être l'un de: \"text\", \"date\", \"checkbox\", \"signature\". x et y sont le CENTRE de l'espace, en pourcentage (0 à 100) de la largeur/hauteur de l'IMAGE FOURNIE. \"size\" doit être l'une de: \"s\" (étroit), \"m\" (normal), \"l\" (grand — commentaire, paragraphe, grande signature).";
+
+function clearAutoFields(){
+  state.fields = state.fields.filter(f=>{
+    if(f.auto){
+      const overlay = state.pageOverlays[f.page];
+      const el = overlay && overlay.querySelector('[data-id="'+f.id+'"]');
+      if(el) el.remove();
+      return false;
+    }
+    return true;
+  });
+}
+
+async function callDetectAPI(imageDataUrl, contextNote){
+  const content = [
+    {type:'text', text: DETECT_PROMPT},
+    {type:'text', text: contextNote},
+    {type:'image', source:{type:'base64', media_type:'image/jpeg', data: imageDataUrl.split(',')[1]}}
+  ];
+  const res = await fetch('/api/detect', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ model:'claude-sonnet-5', max_tokens:2000, messages:[{role:'user', content}] })
+  });
+  const data = await res.json();
+  if(!res.ok){
+    throw new Error((data && data.error && data.error.message) ? data.error.message : ('Erreur HTTP '+res.status));
+  }
+  const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+  let clean = text.replace(/```json|```/g,'').trim();
+  const firstBrace = clean.indexOf('{');
+  const lastBrace = clean.lastIndexOf('}');
+  if(firstBrace===-1 || lastBrace===-1){
+    throw new Error('Réponse de l\u2019IA sans JSON exploitable : "'+clean.slice(0,160)+'"');
+  }
+  clean = clean.slice(firstBrace, lastBrace+1);
+  const parsed = JSON.parse(clean);
+  return Array.isArray(parsed.fields) ? parsed.fields : [];
+}
+
+async function detectFullPage(pageIndex){
+  const p = state.pdfPages[pageIndex];
+  const small = downscaleCanvas(p.canvas, 1100);
+  const dataUrl = small.toDataURL('image/jpeg', 0.62);
+  const fields = await callDetectAPI(dataUrl, 'Ceci est la page '+(pageIndex+1)+' du document (image complète).');
+  fields.forEach(f=>{ f.__page = pageIndex; });
+  return fields;
+}
+
+async function detectPageRegion(pageIndex, yStartPct, yEndPct){
+  const p = state.pdfPages[pageIndex];
+  const full = downscaleCanvas(p.canvas, 1100);
+  const cropTop = Math.round(full.height * yStartPct/100);
+  const cropBottom = Math.round(full.height * yEndPct/100);
+  const cropH = Math.max(1, cropBottom - cropTop);
+  const c2 = document.createElement('canvas');
+  c2.width = full.width; c2.height = cropH;
+  c2.getContext('2d').drawImage(full, 0, cropTop, full.width, cropH, 0, 0, full.width, cropH);
+  const dataUrl = c2.toDataURL('image/jpeg', 0.62);
+  const fields = await callDetectAPI(dataUrl, 'Ceci est un EXTRAIT (portion verticale) de la page '+(pageIndex+1)+' du document, pas la page entière — les coordonnées x/y sont relatives à CET EXTRAIT.');
+  const span = yEndPct - yStartPct;
+  fields.forEach(f=>{
+    f.y = yStartPct + (Number(f.y)||50) * span/100;
+    f.__page = pageIndex;
+  });
+  return fields;
+}
+
+function ingestDetectedFields(rawFields, totalPages){
+  rawFields.forEach(rf=>{
+    const page = clamp(rf.__page!=null ? rf.__page : 0, 0, totalPages-1);
+    const type = ['text','date','checkbox','signature','heading'].includes(rf.type) ? rf.type : 'text';
+    const sizeKey = ['s','m','l'].includes(rf.size) ? rf.size : 'm';
+    const preset = SIZE_PRESETS[type][sizeKey];
+    const w = preset.w, h = preset.h;
+    const cx = Number(rf.x), cy = Number(rf.y);
+    const x = clamp((isNaN(cx)?50:cx) - w/2, 0, 100-w);
+    const y = clamp((isNaN(cy)?50:cy) - h/2, 0, 100-h);
+    const f = {
+      id: uid(), page, type, auto: true,
+      label: rf.label || TYPE_LABELS[type],
+      x, y, w, h
+    };
+    state.fields.push(f);
+    state.pageOverlays[page].appendChild(createFieldElement(f, state.pageOverlays[page]));
+  });
+}
+
+async function runDetection(){
+  const statusEl = document.getElementById('detectStatus');
+  const totalPages = state.pdfPages.length;
+  clearAutoFields();
+  updateStatusLine();
+
+  let totalFound = 0;
+  const failedRanges = [];
+
+  for(let pageIndex=0; pageIndex<totalPages; pageIndex++){
+    statusEl.innerHTML = '<div class="spinner-row"><div class="spinner"></div> Analyse de la page '+(pageIndex+1)+' sur '+totalPages+'…</div>';
+    try{
+      const rawFields = await detectFullPage(pageIndex);
+      ingestDetectedFields(rawFields, totalPages);
+      totalFound += rawFields.length;
+    }catch(err){
+      console.warn('Page '+(pageIndex+1)+' trop dense pour une seule réponse, nouvelle tentative en 2 moitiés…', err);
+      statusEl.innerHTML = '<div class="spinner-row"><div class="spinner"></div> Page '+(pageIndex+1)+' dense — redécoupage en 2 parties…</div>';
+      try{
+        const topFields = await detectPageRegion(pageIndex, 0, 54);
+        const botFields = await detectPageRegion(pageIndex, 46, 100);
+        const combined = [...topFields, ...botFields];
+        ingestDetectedFields(combined, totalPages);
+        totalFound += combined.length;
+      }catch(err2){
+        console.error('Échec page '+(pageIndex+1), err2);
+        failedRanges.push({range: String(pageIndex+1), message: err2.message||String(err2)});
+      }
+    }
+    updateStatusLine();
+  }
+
+  for(let p=0; p<totalPages; p++) markConsumedBlocksForPage(p);
+  renderCreateSimpleList();
+
+  if(failedRanges.length){
+    const detail = failedRanges.map(r=>'page '+r.range+' ('+escapeHtml(r.message)+')').join(' · ');
+    statusEl.innerHTML = '<p class="status-line" style="color:var(--danger);">'+totalFound+' champ(s) détecté(s). Échec pour : '+detail+
+      '. <button class="btn btn-sm" id="retryDetectBtn">Réessayer tout</button></p>';
+    document.getElementById('retryDetectBtn').addEventListener('click', runDetection);
+  } else if(totalFound === 0){
+    statusEl.innerHTML = '<p class="status-line" style="color:var(--danger);">L\u2019IA n\u2019a trouvé aucun champ vide sur ce document. Ajoute-les manuellement avec les boutons ci-dessous, ou <button class="btn btn-sm" id="retryDetectBtn">réessaie</button>.</p>';
+    document.getElementById('retryDetectBtn').addEventListener('click', runDetection);
+  } else {
+    statusEl.innerHTML = '<p class="status-line" style="color:var(--success);">'+totalFound+' champ(s) détecté(s) sur '+totalPages+' page(s). Ajuste-les si besoin.</p>';
+  }
+}
+document.getElementById('detectBtn').addEventListener('click', ()=>{
+  if(!state.pdfPages.length) return;
+  runDetection();
+});
+
+/* ---------- save form ---------- */
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  if(!state.pdfPages.length){ showToast("Choisis un PDF d'abord."); return; }
+  const title = (document.getElementById('formTitleInput').value || 'Formulaire sans titre').trim();
+  const id = state.currentFormId || uid();
+  const pages = state.pdfPages.map(p=>{
+    const small = downscaleCanvas(p.canvas, 1100);
+    return { w: p.width, h: p.height, img: small.toDataURL('image/jpeg', 0.65), transcript: (p.transcript||[]).filter(b=>!b.removed).map(b=>({type:b.type, text:b.text, yPct:b.yPct})) };
+  });
+  const record = { id, title, createdAt: Date.now(), pages, fields: state.fields.map(f=>({...f})) };
+  await storageSet('form:'+id, record, true);
+  let idx = await storageGet('forms-index', true) || [];
+  idx = idx.filter(x=>x.id!==id);
+  idx.unshift({id, title, createdAt: record.createdAt, pageCount: pages.length, fieldCount: state.fields.length});
+  await storageSet('forms-index', idx, true);
+  state.currentFormId = id;
+  document.getElementById('shareBoxWrap').innerHTML =
+    '<div class="share-box" style="margin-top:12px;">'+
+      '<strong>Formulaire enregistré.</strong>'+
+      '<div class="url mono" id="shareUrl">'+location.origin+location.pathname+'#fill='+id+'</div>'+
+      '<button class="btn btn-sm" id="copyLinkBtn">Copier le lien</button> '+
+      '<button class="btn btn-sm btn-accent" id="goTestBtn">Tester comme destinataire</button>'+
+    '</div>';
+  document.getElementById('copyLinkBtn').addEventListener('click', ()=>{
+    const url = document.getElementById('shareUrl').textContent;
+    navigator.clipboard?.writeText(url).then(()=>showToast('Lien copié !')).catch(()=>showToast(url));
+  });
+  document.getElementById('goTestBtn').addEventListener('click', async ()=>{
+    goToTab('fill');
+    await refreshFillDropdown();
+    document.getElementById('fillFormSelect').value = id;
+    document.getElementById('fillFormSelect').dispatchEvent(new Event('change'));
+  });
+  showToast('Formulaire enregistré.');
+});
+
+/* ===================== FILL TAB ===================== */
+async function refreshFillDropdown(){
+  const idx = await storageGet('forms-index', true) || [];
+  const sel = document.getElementById('fillFormSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Choisir un formulaire —</option>' +
+    idx.map(f=>'<option value="'+f.id+'">'+escapeHtml(f.title)+'</option>').join('');
+  if(current) sel.value = current;
+}
+
+document.getElementById('fillFormSelect').addEventListener('change', async e=>{
+  const id = e.target.value;
+  document.getElementById('fillSuccessMsg').style.display = 'none';
+  if(!id){
+    document.getElementById('fillEmptyState').style.display='block';
+    document.getElementById('fillFormArea').style.display='none';
+    document.getElementById('fillViewToggle').style.display='none';
+    return;
+  }
+  const record = await storageGet('form:'+id, true);
+  if(!record){ showToast('Formulaire introuvable.'); return; }
+  state.fillForm = record; state.fillValues = {};
+  state.fillViewMode = 'simple';
+  document.getElementById('fillStatusLine').textContent = record.pages.length+' page(s) · '+record.fields.length+' champ(s) à remplir';
+  document.getElementById('fillEmptyState').style.display='none';
+  document.getElementById('fillFormArea').style.display='block';
+  document.getElementById('fillViewToggle').style.display='flex';
+  document.querySelectorAll('#fillViewToggle .subtab-btn').forEach(b=>b.classList.toggle('active', b.dataset.view==='simple'));
+  document.getElementById('fillSimpleView').style.display='block';
+  document.getElementById('fillPages').style.display='none';
+  renderFillSimpleView();
+  renderFillPages();
+});
+
+document.querySelectorAll('#fillViewToggle .subtab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#fillViewToggle .subtab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.fillViewMode = btn.dataset.view;
+    document.getElementById('fillSimpleView').style.display = state.fillViewMode==='simple' ? 'block' : 'none';
+    document.getElementById('fillPages').style.display = state.fillViewMode==='overlay' ? 'flex' : 'none';
+    // re-render so already-entered values (and signatures) carry over visually
+    if(state.fillViewMode==='simple') renderFillSimpleView(); else renderFillPages();
+  });
+});
+
+function orderedFillFields(){
+  return [...state.fillForm.fields].sort((a,b)=> a.page-b.page || a.y-b.y || a.x-b.x);
+}
+
+function renderFillSimpleView(){
+  const container = document.getElementById('fillSimpleView');
+  container.innerHTML = '';
+  const pages = state.fillForm.pages;
+  const fields = state.fillForm.fields;
+  for(let p=0; p<pages.length; p++) markConsumedBlocksGeneric(pages, fields, p);
+
+  let any = false;
+  for(let p=0; p<pages.length; p++){
+    const timeline = getPageTimelineGeneric(pages, fields, p);
+    if(!timeline.length) continue;
+    any = true;
+    const tag = document.createElement('div'); tag.className='simple-page-tag'; tag.textContent='PAGE '+(p+1);
+    container.appendChild(tag);
+    let prevKind = null;
+    let i = 0;
+    while(i < timeline.length){
+      const item = timeline[i];
+      if(item.kind==='block'){
+        container.appendChild(buildTranscriptBlockEl(item.block));
+        prevKind = 'block-'+item.block.type;
+        i++;
+        continue;
+      }
+      if(item.field.type === 'checkbox'){
+        const group = [item.field];
+        let j = i+1;
+        while(j < timeline.length && timeline[j].kind==='field' && timeline[j].field.type==='checkbox'){
+          group.push(timeline[j].field); j++;
+        }
+        if(group.length > 1){
+          container.appendChild(buildChecklistGroup(group, prevKind==='block-heading'));
+          prevKind = 'checkbox';
+          i = j;
+          continue;
+        }
+      }
+      container.appendChild(buildSimpleFieldElement(item.field));
+      prevKind = 'field';
+      i++;
+    }
+  }
+  if(!any){
+    container.innerHTML = '<div class="csc-empty">Ce formulaire ne contient aucun champ pour le moment.</div>';
+  }
+}
+
+function buildChecklistGroup(group, hasHeadingAbove){
+  const wrap = document.createElement('div'); wrap.className='simple-field';
+  if(!hasHeadingAbove){
+    const label = document.createElement('label');
+    label.innerHTML = '<span class="type-dot" style="background:var(--type-checkbox);"></span>Cases à cocher';
+    wrap.appendChild(label);
+  }
+  const list = document.createElement('div'); list.className='checklist-group';
+  group.forEach(f=>{
+    const row = document.createElement('div'); row.className='checklist-row';
+    row.dataset.fieldId = f.id;
+    const box = buildCustomCheckbox(f, 'checklist-box');
+    box.addEventListener('click', ()=>row.classList.remove('field-missing'));
+    row.appendChild(box);
+    const span = document.createElement('span'); span.className='checklist-label';
+    span.textContent = f.label + (f.required ? ' *' : '');
+    row.appendChild(span);
+    list.appendChild(row);
+  });
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function buildCustomCheckbox(f, extraClass){
+  const box = document.createElement('div');
+  box.className = 'custom-checkbox' + (extraClass ? ' '+extraClass : '');
+  box.setAttribute('role','checkbox');
+  box.setAttribute('tabindex','0');
+  const isChecked = !!state.fillValues[f.id];
+  box.classList.toggle('checked', isChecked);
+  box.setAttribute('aria-checked', isChecked ? 'true' : 'false');
+  function toggle(){
+    const val = !box.classList.contains('checked');
+    box.classList.toggle('checked', val);
+    box.setAttribute('aria-checked', val ? 'true' : 'false');
+    state.fillValues[f.id] = val;
+  }
+  box.addEventListener('click', toggle);
+  box.addEventListener('keydown', e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); toggle(); } });
+  return box;
+}
+
+function buildSimpleFieldElement(f){
+  if(f.type==='heading'){
+    const heading = document.createElement('div');
+    heading.className = 'simple-heading';
+    heading.dataset.fieldId = f.id;
+    heading.textContent = f.label;
+    return heading;
+  }
+  const wrap = document.createElement('div'); wrap.className='simple-field';
+  wrap.dataset.fieldId = f.id;
+  const label = document.createElement('label');
+  label.innerHTML = '<span class="type-dot" style="background:var(--type-'+f.type+');"></span>' + escapeHtml(f.label) +
+    (f.required ? '<span class="required-mark">*</span>' : '');
+  wrap.appendChild(label);
+
+  if(f.type==='text' || f.type==='date'){
+    const input = document.createElement('input');
+    input.type = f.type==='date' ? 'date' : 'text';
+    input.className = 'simple-input';
+    if(state.fillValues[f.id]!=null) input.value = state.fillValues[f.id];
+    input.addEventListener('input', e=>{ state.fillValues[f.id]=e.target.value; wrap.classList.remove('field-missing'); });
+    wrap.appendChild(input);
+  } else if(f.type==='checkbox'){
+    const row = document.createElement('div'); row.className='simple-checkbox-row';
+    const box = buildCustomCheckbox(f, 'simple-checkbox-box');
+    box.addEventListener('click', ()=>wrap.classList.remove('field-missing'));
+    row.appendChild(box);
+    const span = document.createElement('span'); span.textContent = 'Cocher si applicable';
+    row.appendChild(span);
+    wrap.appendChild(row);
+  } else if(f.type==='signature'){
+    const canvas = document.createElement('canvas'); canvas.className='simple-sig-canvas';
+    wrap.appendChild(canvas);
+    const clearBtn = document.createElement('button');
+    clearBtn.type='button'; clearBtn.className='btn btn-sm'; clearBtn.textContent='Effacer';
+    clearBtn.style.marginTop='8px';
+    wrap.appendChild(clearBtn);
+    requestAnimationFrame(()=>setupSignaturePad(canvas, f, clearBtn));
+  }
+  return wrap;
+}
+
+function renderFillPages(){
+  const container = document.getElementById('fillPages');
+  container.innerHTML = '';
+  state.fillPageOverlays = [];
+  state.fillForm.pages.forEach((p,i)=>{
+    const wrap = document.createElement('div'); wrap.className='page-container';
+    const img = document.createElement('img'); img.src = p.img; img.className='page-img';
+    wrap.appendChild(img);
+    const overlay = document.createElement('div'); overlay.className='page-overlay';
+    wrap.appendChild(overlay);
+    container.appendChild(wrap);
+    state.fillPageOverlays[i] = overlay;
+  });
+  state.fillForm.fields.forEach(f=>{
+    if(f.type==='heading') return;
+    const overlay = state.fillPageOverlays[f.page];
+    if(!overlay) return;
+    overlay.appendChild(buildFillFieldElement(f));
+  });
+}
+
+function buildFillFieldElement(f){
+  const el = document.createElement('div');
+  el.className = 'fill-field';
+  el.dataset.fieldId = f.id;
+  el.style.left=f.x+'%'; el.style.top=f.y+'%'; el.style.width=f.w+'%'; el.style.height=f.h+'%';
+
+  if(f.type==='text'){
+    const input = document.createElement('input');
+    input.type='text'; input.placeholder=f.label; input.className='fill-input';
+    if(state.fillValues[f.id]!=null) input.value = state.fillValues[f.id];
+    input.addEventListener('input', e=>{ state.fillValues[f.id]=e.target.value; el.classList.remove('field-missing'); });
+    el.appendChild(input);
+  } else if(f.type==='date'){
+    const input = document.createElement('input');
+    input.type='date'; input.className='fill-input';
+    if(state.fillValues[f.id]!=null) input.value = state.fillValues[f.id];
+    input.addEventListener('input', e=>{ state.fillValues[f.id]=e.target.value; el.classList.remove('field-missing'); });
+    el.appendChild(input);
+  } else if(f.type==='checkbox'){
+    const box = buildCustomCheckbox(f);
+    box.addEventListener('click', ()=>el.classList.remove('field-missing'));
+    el.appendChild(box);
+  } else if(f.type==='signature'){
+    const canvas = document.createElement('canvas'); canvas.className='signature-canvas';
+    el.appendChild(canvas);
+    const clearBtn = document.createElement('button');
+    clearBtn.className='sig-clear'; clearBtn.textContent='Effacer'; clearBtn.type='button';
+    el.appendChild(clearBtn);
+    requestAnimationFrame(()=>setupSignaturePad(canvas, f, clearBtn));
+  }
+  return el;
+}
+
+function setupSignaturePad(canvas, field, clearBtn){
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio||1;
+  canvas.width = Math.max(1,rect.width*dpr); canvas.height = Math.max(1,rect.height*dpr);
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.strokeStyle = '#14213D';
+  let drawing=false, last=null;
+  const existing = state.fillValues[field.id];
+  if(existing){
+    const img = new Image();
+    img.onload = ()=>{ ctx.drawImage(img, 0, 0, rect.width, rect.height); };
+    img.src = existing;
+  }
+  function pos(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+  canvas.addEventListener('pointerdown', e=>{ drawing=true; last=pos(e); canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e=>{
+    if(!drawing) return;
+    const p = pos(e);
+    ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+    last = p;
+    state.fillValues[field.id] = canvas.toDataURL('image/png');
+  });
+  canvas.addEventListener('pointerup', ()=>{ drawing=false; });
+  canvas.addEventListener('pointerleave', ()=>{ drawing=false; });
+  clearBtn.addEventListener('click', ()=>{
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    delete state.fillValues[field.id];
+  });
+}
+
+document.getElementById('submitFillBtn').addEventListener('click', async ()=>{
+  if(!state.fillForm) return;
+  const missing = state.fillForm.fields.filter(f=>{
+    if(!f.required) return false;
+    const v = state.fillValues[f.id];
+    if(f.type==='checkbox') return !v;
+    return v==null || String(v).trim()==='';
+  });
+  if(missing.length){
+    missing.forEach(f=>{
+      const simpleEl = document.querySelector('#fillSimpleView [data-field-id="'+f.id+'"]');
+      if(simpleEl) simpleEl.classList.add('field-missing');
+      const overlayEl = document.querySelector('#fillPages [data-field-id="'+f.id+'"]');
+      if(overlayEl) overlayEl.classList.add('field-missing');
+    });
+    const firstMissing = document.querySelector('.field-missing');
+    if(firstMissing) firstMissing.scrollIntoView({behavior:'smooth', block:'center'});
+    showToast('Champs obligatoires manquants : '+missing.map(f=>f.label).join(', '));
+    return;
+  }
+  const sub = { id: uid(), formId: state.fillForm.id, submittedAt: Date.now(), values: state.fillValues };
+  await storageSet('submission:'+state.fillForm.id+':'+sub.id, sub, true);
+  document.getElementById('fillFormArea').style.display='none';
+  document.getElementById('fillSuccessMsg').style.display='block';
+});
+
+/* ===================== DASHBOARD TAB ===================== */
+let dashState = { form:null, submissions:[], sortKey:'submittedAt', sortDir:'desc' };
+
+async function refreshDashDropdown(){
+  const idx = await storageGet('forms-index', true) || [];
+  const sel = document.getElementById('dashFormSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Choisir un formulaire —</option>' +
+    idx.map(f=>'<option value="'+f.id+'">'+escapeHtml(f.title)+' ('+f.fieldCount+' champs)</option>').join('');
+  if(current) sel.value = current;
+}
+
+document.getElementById('dashFormSelect').addEventListener('change', async e=>{
+  const id = e.target.value;
+  if(!id){
+    document.getElementById('dashEmptyState').style.display='block';
+    document.getElementById('dashTableWrap').style.display='none';
+    return;
+  }
+  const record = await storageGet('form:'+id, true);
+  const keys = await storageList('submission:'+id+':', true);
+  const subs = [];
+  for(const k of keys){ const s = await storageGet(k, true); if(s) subs.push(s); }
+  dashState.form = record; dashState.submissions = subs;
+  document.getElementById('dashEmptyState').style.display='none';
+  document.getElementById('dashTableWrap').style.display='block';
+  renderDashTable();
+});
+
+document.getElementById('dashSearch').addEventListener('input', renderDashTable);
+
+function buildDashboardColumns(record){
+  const cols = [];
+  for(let p=0; p<record.pages.length; p++){
+    const timeline = getPageTimelineGeneric(record.pages, record.fields, p);
+    let prevHeadingText = null;
+    let i = 0;
+    while(i < timeline.length){
+      const item = timeline[i];
+      if(item.kind==='block'){
+        if(item.block.type==='heading') prevHeadingText = item.block.text;
+        i++; continue;
+      }
+      const f = item.field;
+      if(f.type==='signature'){ i++; continue; }
+      if(f.type==='checkbox'){
+        const group=[f]; let j=i+1;
+        while(j<timeline.length && timeline[j].kind==='field' && timeline[j].field.type==='checkbox'){
+          group.push(timeline[j].field); j++;
+        }
+        if(group.length>1){
+          cols.push({
+            key: 'grp:'+group.map(x=>x.id).join('|'),
+            label: prevHeadingText || 'Sélection',
+            getValue: values => group.filter(x=>values[x.id]).map(x=>x.label).join(', ')
+          });
+          i = j; continue;
+        }
+      }
+      cols.push({
+        key: f.id,
+        label: f.label,
+        getValue: values => {
+          const v = values[f.id];
+          if(f.type==='checkbox') return v ? 'Oui' : '';
+          return v==null ? '' : String(v);
+        }
+      });
+      i++;
+    }
+  }
+  return cols;
+}
+
+function renderDashTable(){
+  if(!dashState.form) return;
+  const record = dashState.form;
+  const cols = buildDashboardColumns(record);
+  const hasSignature = record.fields.some(f=>f.type==='signature');
+  const query = document.getElementById('dashSearch').value.trim().toLowerCase();
+
+  let rows = dashState.submissions.map(s=>{
+    const cells = cols.map(c=>c.getValue(s.values));
+    return {sub:s, cells};
+  });
+
+  if(query){
+    rows = rows.filter(r => r.cells.some(c=>c.toLowerCase().includes(query)));
+  }
+
+  rows.sort((a,b)=>{
+    let av, bv;
+    if(dashState.sortKey==='submittedAt'){ av=a.sub.submittedAt; bv=b.sub.submittedAt; }
+    else{
+      const colIdx = cols.findIndex(c=>c.key===dashState.sortKey);
+      av = a.cells[colIdx]||''; bv = b.cells[colIdx]||'';
+    }
+    if(av<bv) return dashState.sortDir==='asc' ? -1 : 1;
+    if(av>bv) return dashState.sortDir==='asc' ? 1 : -1;
+    return 0;
+  });
+
+  const thead = document.querySelector('#dashTable thead');
+  const tbody = document.querySelector('#dashTable tbody');
+  thead.innerHTML = '<tr><th data-key="submittedAt">Date</th>' + (hasSignature?'<th>Document</th>':'') +
+    cols.map(c=>'<th data-key="'+c.key+'">'+escapeHtml(c.label)+'</th>').join('') + '</tr>';
+
+  thead.querySelectorAll('th[data-key]').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.dataset.key;
+      dashState.sortDir = (dashState.sortKey===key && dashState.sortDir==='asc') ? 'desc' : 'asc';
+      dashState.sortKey = key;
+      renderDashTable();
+    });
+  });
+
+  if(!rows.length){
+    tbody.innerHTML = '<tr><td colspan="'+(cols.length+2)+'" style="color:var(--ink-soft);">Aucune réponse pour le moment.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r=>{
+    const d = new Date(r.sub.submittedAt);
+    const dateStr = d.toLocaleDateString('fr-CA', {year:'numeric', month:'short', day:'numeric'});
+    const docCell = hasSignature ? '<td><button class="doc-btn" data-sub="'+r.sub.id+'">Voir le document</button></td>' : '';
+    const valCells = r.cells.map(v=>'<td>'+escapeHtml(v)+'</td>').join('');
+    return '<tr><td>'+dateStr+'</td>'+docCell+valCells+'</tr>';
+  }).join('');
+
+  tbody.querySelectorAll('.doc-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const sub = dashState.submissions.find(s=>s.id===btn.dataset.sub);
+      openSubmissionModal(sub);
+    });
+  });
+}
+
+function buildReadonlyFieldRow(f, value){
+  const wrap = document.createElement('div'); wrap.className='simple-field';
+  const label = document.createElement('label');
+  label.innerHTML = '<span class="type-dot" style="background:var(--type-'+f.type+');"></span>' + escapeHtml(f.label);
+  wrap.appendChild(label);
+  if(f.type==='signature'){
+    if(value){
+      const img = document.createElement('img'); img.src=value;
+      img.style.maxWidth='280px'; img.style.maxHeight='100px'; img.style.display='block';
+      img.style.border='1px solid var(--line)'; img.style.borderRadius='6px'; img.style.background='#fff';
+      wrap.appendChild(img);
+    } else {
+      const em = document.createElement('div'); em.className='ro-value ro-empty'; em.textContent='(non signé)';
+      wrap.appendChild(em);
+    }
+  } else {
+    const val = document.createElement('div');
+    val.className = 'ro-value' + (value ? '' : ' ro-empty');
+    val.textContent = value ? String(value) : '(vide)';
+    wrap.appendChild(val);
+  }
+  return wrap;
+}
+
+function buildReadonlyChecklistGroup(group, values, hasHeadingAbove){
+  const wrap = document.createElement('div'); wrap.className='simple-field';
+  if(!hasHeadingAbove){
+    const label = document.createElement('label');
+    label.innerHTML = '<span class="type-dot" style="background:var(--type-checkbox);"></span>Cases à cocher';
+    wrap.appendChild(label);
+  }
+  const list = document.createElement('div'); list.className='checklist-group';
+  group.forEach(f=>{
+    const row = document.createElement('div'); row.className='checklist-row';
+    const box = document.createElement('div');
+    box.className = 'custom-checkbox checklist-box' + (values[f.id] ? ' checked' : '');
+    row.appendChild(box);
+    const span = document.createElement('span'); span.className='checklist-label'; span.textContent=f.label;
+    row.appendChild(span);
+    list.appendChild(row);
+  });
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function openSubmissionModal(sub){
+  const record = dashState.form;
+  const pagesEl = document.getElementById('modalPages');
+  pagesEl.innerHTML = '';
+  for(let p=0; p<record.pages.length; p++) markConsumedBlocksGeneric(record.pages, record.fields, p);
+
+  let any = false;
+  for(let p=0; p<record.pages.length; p++){
+    const timeline = getPageTimelineGeneric(record.pages, record.fields, p);
+    if(!timeline.length) continue;
+    any = true;
+    const tag = document.createElement('div'); tag.className='simple-page-tag'; tag.textContent='PAGE '+(p+1);
+    pagesEl.appendChild(tag);
+    let prevKind = null;
+    let i = 0;
+    while(i < timeline.length){
+      const item = timeline[i];
+      if(item.kind==='block'){
+        pagesEl.appendChild(buildTranscriptBlockEl(item.block));
+        prevKind = 'block-'+item.block.type;
+        i++;
+        continue;
+      }
+      if(item.field.type === 'checkbox'){
+        const group = [item.field];
+        let j = i+1;
+        while(j < timeline.length && timeline[j].kind==='field' && timeline[j].field.type==='checkbox'){
+          group.push(timeline[j].field); j++;
+        }
+        if(group.length > 1){
+          pagesEl.appendChild(buildReadonlyChecklistGroup(group, sub.values, prevKind==='block-heading'));
+          prevKind = 'checkbox';
+          i = j;
+          continue;
+        }
+      }
+      pagesEl.appendChild(buildReadonlyFieldRow(item.field, sub.values[item.field.id]));
+      prevKind = 'field';
+      i++;
+    }
+  }
+  if(!any){
+    pagesEl.innerHTML = '<div class="csc-empty">Aucune réponse à afficher.</div>';
+  }
+  document.getElementById('modalBackdrop').classList.add('active');
+}
+document.getElementById('modalClose').addEventListener('click', ()=>document.getElementById('modalBackdrop').classList.remove('active'));
+document.getElementById('modalBackdrop').addEventListener('click', e=>{
+  if(e.target.id==='modalBackdrop') e.currentTarget.classList.remove('active');
+});
+
+document.getElementById('fabTryParticipant').addEventListener('click', ()=>{
+  goToTab('fill');
+  window.scrollTo({top:0, behavior:'smooth'});
+});
+
+(async function applyRouteFromHash(){
+  const hash = location.hash.replace('#','');
+  if(!hash) return;
+  if(hash === 'fill' || hash.indexOf('fill=')===0){
+    goToTab('fill');
+    await refreshFillDropdown();
+    const parts = hash.split('=');
+    if(parts.length>1 && parts[1]){
+      const sel = document.getElementById('fillFormSelect');
+      sel.value = parts[1];
+      sel.dispatchEvent(new Event('change'));
+    }
+  } else if(hash === 'dashboard'){
+    goToTab('dashboard');
+  }
+})();
+</script>
+</body>
+</html>
