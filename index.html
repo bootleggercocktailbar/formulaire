@@ -1278,6 +1278,10 @@ function ingestDetectedFields(rawFields, totalPages){
   });
 }
 
+function isConfigError(msg){
+  return /ANTHROPIC_API_KEY/i.test(msg||'');
+}
+
 async function runDetection(){
   const statusEl = document.getElementById('detectStatus');
   const totalPages = state.pdfPages.length;
@@ -1294,6 +1298,10 @@ async function runDetection(){
       ingestDetectedFields(rawFields, totalPages);
       totalFound += rawFields.length;
     }catch(err){
+      if(isConfigError(err.message)){
+        statusEl.innerHTML = '<p class="status-line" style="color:var(--ink-soft);">La détection automatique n\u2019est pas encore configurée sur ce site (clé API Anthropic manquante côté serveur). Ajoute des champs manuellement avec les boutons ci-contre en attendant — tu pourras activer la détection automatique plus tard sans rien reconstruire.</p>';
+        return;
+      }
       console.warn('Page '+(pageIndex+1)+' trop dense pour une seule réponse, nouvelle tentative en 2 moitiés…', err);
       statusEl.innerHTML = '<div class="spinner-row"><div class="spinner"></div> Page '+(pageIndex+1)+' dense — redécoupage en 2 parties…</div>';
       try{
@@ -1340,11 +1348,20 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     return { w: p.width, h: p.height, img: small.toDataURL('image/jpeg', 0.65), transcript: (p.transcript||[]).filter(b=>!b.removed).map(b=>({type:b.type, text:b.text, yPct:b.yPct})) };
   });
   const record = { id, title, createdAt: Date.now(), pages, fields: state.fields.map(f=>({...f})) };
-  await storageSet('form:'+id, record, true);
+  const saveOk = await storageSet('form:'+id, record, true);
+  if(!saveOk){
+    document.getElementById('shareBoxWrap').innerHTML =
+      '<div class="share-box" style="margin-top:12px;border-color:var(--danger);background:#fbeceb;">'+
+      '<strong style="color:var(--danger);">Échec de la sauvegarde.</strong> La base de données Supabase n\u2019a pas répondu correctement — vérifie que le script <code>supabase-schema.sql</code> a bien été exécuté (Supabase → SQL Editor), et que <code>SUPABASE_URL</code>/<code>SUPABASE_ANON_KEY</code> sont corrects sur Vercel. Regarde la console du navigateur (F12) pour le détail de l\u2019erreur.</div>';
+    return;
+  }
   let idx = await storageGet('forms-index', true) || [];
   idx = idx.filter(x=>x.id!==id);
   idx.unshift({id, title, createdAt: record.createdAt, pageCount: pages.length, fieldCount: state.fields.length});
-  await storageSet('forms-index', idx, true);
+  const idxOk = await storageSet('forms-index', idx, true);
+  if(!idxOk){
+    showToast('Attention : le formulaire est sauvegardé mais n\u2019apparaîtra peut-être pas dans les listes déroulantes (échec de l\u2019index).');
+  }
   state.currentFormId = id;
   document.getElementById('shareBoxWrap').innerHTML =
     '<div class="share-box" style="margin-top:12px;">'+
