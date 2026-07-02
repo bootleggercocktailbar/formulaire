@@ -1923,6 +1923,17 @@ document.getElementById('fabTryParticipant').addEventListener('click', ()=>{
       const sel = document.getElementById('fillFormSelect');
       sel.value = parts[1];
       sel.dispatchEvent(new Event('change'));
+      // Lien direct vers un formulaire précis : c'est un participant, pas le créateur.
+      // On cache l'accès aux autres écrans pour éviter les accidents (PAS une vraie sécurité :
+      // enlever le #fill=... de l'adresse redonne accès à tout — utile en attendant une vraie
+      // authentification).
+      const createTab = document.querySelector('.tab-btn[data-tab="create"]');
+      const dashTab = document.querySelector('.tab-btn[data-tab="dashboard"]');
+      if(createTab) createTab.style.display = 'none';
+      if(dashTab) dashTab.style.display = 'none';
+      const fab = document.getElementById('fabTryParticipant');
+      if(fab) fab.style.display = 'none';
+      sel.style.display = 'none';
     }
   } else if(hash === 'dashboard'){
     goToTab('dashboard');
