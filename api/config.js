@@ -1,8 +1,9 @@
 // api/config.js
-// Fournit au frontend l'URL et la clé publique ("anon") de Supabase.
-// La clé "anon" est conçue pour être publique (la sécurité se fait via les
-// politiques RLS définies dans supabase-schema.sql) — ce n'est PAS un secret,
-// contrairement à ANTHROPIC_API_KEY qui elle ne doit jamais transiter ici.
+// PUBLIC — fournit au frontend l'URL et la clé publique ("anon") de Supabase,
+// utilisées UNIQUEMENT pour l'authentification (connexion admin). Le
+// navigateur n'utilise plus cette clé pour lire/écrire des données — tout ça
+// passe maintenant par les fonctions /api/* qui utilisent la clé secrète
+// service_role, jamais exposée ici.
 
 module.exports = function handler(req, res) {
   res.status(200).json({

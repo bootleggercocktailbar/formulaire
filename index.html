@@ -22,7 +22,7 @@
   --type-text:#3A5A8C;
   --type-date:#2F7A6B;
   --type-checkbox:#A6743A;
-  --type-signature:#B8862E;
+  --type-signature:#8A5FA8;
   --type-heading:#6B6558;
   --radius:10px;
 }
@@ -78,6 +78,12 @@ header{
 .notice{
   max-width:1280px;margin:14px auto 0;padding:0 20px;
 }
+#adminLoginGate{ max-width:420px; margin:60px auto; padding:0 20px; }
+.login-box{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:28px; }
+.login-box h2{ margin-bottom:8px; }
+.login-box p{ font-size:13px; color:var(--ink-soft); margin-bottom:18px; }
+.login-box .field-group input{ width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+.login-box .field-group{ margin-bottom:14px; }
 .notice-inner{
   background:var(--accent-soft);border:1px solid #E1CE9C;border-radius:var(--radius);
   padding:10px 14px;font-size:13px;color:#5A4419;
@@ -155,7 +161,7 @@ main{max-width:1280px;margin:0 auto;padding:24px 20px 80px;}
 .field-text{border-color:var(--type-text);background:rgba(58,90,140,.08);}
 .field-date{border-color:var(--type-date);background:rgba(47,122,107,.08);}
 .field-checkbox{border-color:var(--type-checkbox);background:rgba(166,116,58,.1);}
-.field-signature{border-color:var(--type-signature);background:rgba(184,134,46,.08);}
+.field-signature{border-color:var(--type-signature);background:rgba(138,95,168,.08);}
 .field-heading{border-color:var(--type-heading);background:rgba(107,101,88,.08);}
 .field-tag{
   position:absolute;top:-9px;left:4px;font-family:'IBM Plex Mono',monospace;font-size:9px;
@@ -233,6 +239,9 @@ main{max-width:1280px;margin:0 auto;padding:24px 20px 80px;}
 .transcript-paragraph{font-size:13px;line-height:1.65;color:var(--ink-soft);margin:0 0 14px;padding:0 2px;}
 .transcript-block-wrap{position:relative;}
 .transcript-block-wrap:hover .transcript-del-btn{opacity:1;}
+.is-editable-text{cursor:text;border-radius:4px;transition:background .15s;padding:2px 4px;margin:0 -4px;}
+.is-editable-text:hover{background:var(--accent-soft);}
+.is-editable-text:focus{outline:2px solid var(--accent);background:#fff;}
 .transcript-del-btn{
   position:absolute;top:0;right:-4px;width:22px;height:22px;border-radius:50%;border:none;
   background:var(--danger);color:#fff;font-size:13px;line-height:1;opacity:0;transition:opacity .15s;cursor:pointer;
@@ -243,6 +252,24 @@ main{max-width:1280px;margin:0 auto;padding:24px 20px 80px;}
 /* ===== Fill mode ===== */
 .fill-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
 select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;background:#fff;color:var(--ink);}
+
+.form-picker{position:relative;width:280px;flex:none;}
+.form-picker-input-wrap{position:relative;display:flex;align-items:center;}
+.form-picker-icon{position:absolute;left:11px;color:var(--ink-soft);pointer-events:none;}
+.form-picker-input{
+  width:100%;padding:9px 12px 9px 34px;border:1px solid var(--line);border-radius:8px;
+  font-size:13.5px;background:#fff;color:var(--ink);
+}
+.form-picker-input:focus{outline:none;border-color:var(--accent);}
+.form-picker-input:disabled{background:var(--paper);color:var(--ink-soft);cursor:not-allowed;}
+.form-picker-list{
+  display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;max-height:260px;overflow-y:auto;
+  background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(20,33,61,.15);
+}
+.form-picker-list.open{display:block;}
+.form-picker-item{padding:10px 12px;font-size:13.5px;color:var(--ink);cursor:pointer;}
+.form-picker-item:hover, .form-picker-item.active{background:var(--paper);}
+.form-picker-empty{padding:14px 12px;font-size:12.5px;color:var(--ink-soft);text-align:center;}
 .fill-field{position:absolute;}
 .fill-input{
   width:100%;height:100%;border:none;border-bottom:2px solid var(--ink-soft);background:transparent;
@@ -369,12 +396,49 @@ tr:hover td{background:#FAF9F6;}
       <button class="tab-btn" data-tab="fill">Aperçu destinataire</button>
       <button class="tab-btn" data-tab="dashboard">Tableau de bord</button>
     </div>
+    <div id="authStatus" style="display:none;align-items:center;gap:10px;">
+      <span id="authEmailLabel" style="font-size:12px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;"></span>
+      <button class="btn btn-sm" id="changePasswordBtn">Mot de passe</button>
+      <button class="btn btn-sm" id="logoutBtn">Se déconnecter</button>
+    </div>
   </div>
 </header>
 
 <div class="notice">
   <div class="notice-inner">
-    Version de démarrage — tous les formulaires et réponses sont stockés dans une seule base de données partagée (pas encore de comptes séparés par organisation). Ajoute une authentification avant d'inviter d'autres personnes à créer des formulaires.
+    Créateur et Tableau de bord sont réservés à l'administrateur connecté. Les participants n'accèdent qu'au formulaire précis dont ils ont reçu le lien.
+  </div>
+</div>
+
+<div id="adminLoginGate" style="display:none;">
+  <div class="login-box">
+    <h2>Connexion admin</h2>
+    <p>Cette section est réservée à l'administrateur de Griffe.</p>
+    <div class="field-group">
+      <label>Courriel</label>
+      <input type="email" id="loginEmail" autocomplete="username">
+    </div>
+    <div class="field-group">
+      <label>Mot de passe</label>
+      <input type="password" id="loginPassword" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" id="loginSubmitBtn" style="width:100%;justify-content:center;">Se connecter</button>
+    <p id="loginError" style="color:var(--danger);font-size:13px;margin-top:10px;display:none;"></p>
+  </div>
+</div>
+
+<div id="changePasswordModal" class="modal-backdrop">
+  <div class="modal-box" style="max-width:360px;">
+    <div class="modal-head">
+      <h3>Changer le mot de passe</h3>
+      <button class="modal-close" id="changePasswordClose">×</button>
+    </div>
+    <div class="field-group">
+      <label>Nouveau mot de passe</label>
+      <input type="password" id="newPasswordInput">
+    </div>
+    <button class="btn btn-primary" id="newPasswordSubmitBtn" style="width:100%;justify-content:center;">Confirmer</button>
+    <p id="changePasswordMsg" style="font-size:13px;margin-top:10px;"></p>
   </div>
 </div>
 
@@ -442,7 +506,13 @@ tr:hover td{background:#FAF9F6;}
   <!-- ===================== FILL TAB ===================== -->
   <section class="view" id="view-fill">
     <div class="fill-toolbar">
-      <select id="fillFormSelect"><option value="">— Choisir un formulaire —</option></select>
+      <div class="form-picker" id="fillFormPicker">
+        <div class="form-picker-input-wrap">
+          <svg class="form-picker-icon" viewBox="0 0 20 20" width="15" height="15"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="13" y1="13" x2="18" y2="18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <input type="text" class="form-picker-input" id="fillFormPickerInput" placeholder="Choisir un formulaire…" autocomplete="off">
+        </div>
+        <div class="form-picker-list" id="fillFormPickerList"></div>
+      </div>
       <span class="status-line" id="fillStatusLine"></span>
       <div class="tabs" id="fillViewToggle" style="display:none;">
         <button class="subtab-btn active" data-view="simple">Formulaire simplifié</button>
@@ -467,7 +537,13 @@ tr:hover td{background:#FAF9F6;}
   <!-- ===================== DASHBOARD TAB ===================== -->
   <section class="view" id="view-dashboard">
     <div class="dash-toolbar">
-      <select id="dashFormSelect"><option value="">— Choisir un formulaire —</option></select>
+      <div class="form-picker" id="dashFormPicker">
+        <div class="form-picker-input-wrap">
+          <svg class="form-picker-icon" viewBox="0 0 20 20" width="15" height="15"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="13" y1="13" x2="18" y2="18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <input type="text" class="form-picker-input" id="dashFormPickerInput" placeholder="Choisir un formulaire…" autocomplete="off">
+        </div>
+        <div class="form-picker-list" id="dashFormPickerList"></div>
+      </div>
       <input type="text" id="dashSearch" placeholder="Rechercher dans les réponses…">
     </div>
     <div id="dashEmptyState" class="empty-state">Choisis un formulaire pour voir ses réponses.</div>
@@ -535,62 +611,123 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'), 2200);
 }
 
-/* ---------- storage helpers (Supabase-backed key/value table) ---------- */
-let supabaseClient = null;
-const supabaseReady = (async () => {
+/* ---------- Authentification admin (Supabase Auth) ---------- */
+let authClient = null;
+let authSession = null;
+
+const authReady = (async () => {
   try{
     const res = await fetch('/api/config');
     const cfg = await res.json();
     if(!cfg.supabaseUrl || !cfg.supabaseAnonKey){
-      console.error('Config Supabase manquante — vérifie les variables d\u2019environnement SUPABASE_URL / SUPABASE_ANON_KEY sur Vercel.');
+      console.error('Config Supabase manquante — vérifie SUPABASE_URL / SUPABASE_ANON_KEY sur Vercel.');
       return;
     }
-    supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    authClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    const { data } = await authClient.auth.getSession();
+    authSession = data && data.session ? data.session : null;
+    authClient.auth.onAuthStateChange((_event, session) => {
+      authSession = session;
+      updateAuthUI();
+    });
   }catch(e){
     console.error('Impossible de charger la configuration Supabase (/api/config).', e);
   }
 })();
 
-async function storageSet(key, value, shared=true){
-  try{
-    await supabaseReady;
-    if(!supabaseClient) return null;
-    const { error } = await supabaseClient.from('kv_store').upsert({ key, value });
-    if(error) throw error;
-    return true;
-  }catch(e){ console.error('storage.set', e); return null; }
+function isAdminLoggedIn(){ return !!(authSession && authSession.access_token); }
+
+async function authHeaders(){
+  await authReady;
+  if(!authSession) return {};
+  return { 'Authorization': 'Bearer ' + authSession.access_token };
 }
-async function storageGet(key, shared=true){
-  try{
-    await supabaseReady;
-    if(!supabaseClient) return null;
-    const { data, error } = await supabaseClient.from('kv_store').select('value').eq('key', key).maybeSingle();
-    if(error) throw error;
-    return data ? data.value : null;
-  }catch(e){ console.error('storage.get', e); return null; }
+
+async function adminLogin(email, password){
+  await authReady;
+  if(!authClient) return { error: 'Configuration Supabase manquante.' };
+  const { data, error } = await authClient.auth.signInWithPassword({ email, password });
+  if(error) return { error: error.message };
+  authSession = data.session;
+  updateAuthUI();
+  return { ok: true };
 }
-async function storageList(prefix, shared=true){
-  try{
-    await supabaseReady;
-    if(!supabaseClient) return [];
-    const { data, error } = await supabaseClient.from('kv_store').select('key').like('key', prefix+'%');
-    if(error) throw error;
-    return data ? data.map(r=>r.key) : [];
-  }catch(e){ console.error('storage.list', e); return []; }
+async function adminLogout(){
+  await authReady;
+  if(authClient) await authClient.auth.signOut();
+  authSession = null;
+  updateAuthUI();
 }
-async function storageDelete(key, shared=true){
+async function adminChangePassword(newPassword){
+  await authReady;
+  if(!authClient) return { error: 'Configuration Supabase manquante.' };
+  const { error } = await authClient.auth.updateUser({ password: newPassword });
+  if(error) return { error: error.message };
+  return { ok: true };
+}
+
+/* ---------- Appels aux fonctions serveur sécurisées (remplacent l'ancien storage direct) ---------- */
+async function apiListForms(){
   try{
-    await supabaseReady;
-    if(!supabaseClient) return null;
-    const { error } = await supabaseClient.from('kv_store').delete().eq('key', key);
-    if(error) throw error;
-    return true;
-  }catch(e){ console.error('storage.delete', e); return null; }
+    const res = await fetch('/api/list-forms', { headers: await authHeaders() });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Erreur HTTP '+res.status));
+    return data.forms || [];
+  }catch(e){ console.error('apiListForms', e); return null; }
+}
+async function apiSaveForm(id, title, formData){
+  try{
+    const res = await fetch('/api/save-form', {
+      method:'POST',
+      headers: Object.assign({'Content-Type':'application/json'}, await authHeaders()),
+      body: JSON.stringify({ id, title, data: formData })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Erreur HTTP '+res.status));
+    return { ok: true };
+  }catch(e){ console.error('apiSaveForm', e); return { ok:false, error: e.message||String(e) }; }
+}
+async function apiGetForm(id){
+  try{
+    const res = await fetch('/api/get-form?id='+encodeURIComponent(id));
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Erreur HTTP '+res.status));
+    return data.form;
+  }catch(e){ console.error('apiGetForm', e); return null; }
+}
+async function apiSubmit(formId, values){
+  try{
+    const res = await fetch('/api/submit', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ formId, values })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Erreur HTTP '+res.status));
+    return { ok: true };
+  }catch(e){ console.error('apiSubmit', e); return { ok:false, error: e.message||String(e) }; }
+}
+async function apiGetSubmissions(formId){
+  try{
+    const res = await fetch('/api/get-submissions?formId='+encodeURIComponent(formId), { headers: await authHeaders() });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Erreur HTTP '+res.status));
+    return data.submissions || [];
+  }catch(e){ console.error('apiGetSubmissions', e); return []; }
 }
 
 /* ---------- tabs ---------- */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
+  btn.addEventListener('click', async ()=>{
+    if((btn.dataset.tab==='create' || btn.dataset.tab==='dashboard')){
+      await authReady;
+      if(!isAdminLoggedIn()){
+        document.getElementById('adminLoginGate').dataset.pendingTab = btn.dataset.tab;
+        document.getElementById('adminLoginGate').style.display = 'block';
+        document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+        return;
+      }
+    }
+    document.getElementById('adminLoginGate').style.display = 'none';
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     btn.classList.add('active');
@@ -600,6 +737,58 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
   });
 });
 function goToTab(name){ document.querySelector('.tab-btn[data-tab="'+name+'"]').click(); }
+
+function updateAuthUI(){
+  const statusEl = document.getElementById('authStatus');
+  const gateEl = document.getElementById('adminLoginGate');
+  if(isAdminLoggedIn()){
+    statusEl.style.display = 'flex';
+    document.getElementById('authEmailLabel').textContent = authSession.user && authSession.user.email || '';
+    gateEl.style.display = 'none';
+    const pending = gateEl.dataset.pendingTab;
+    if(pending){
+      gateEl.dataset.pendingTab = '';
+      goToTab(pending);
+    }
+  } else {
+    statusEl.style.display = 'none';
+  }
+}
+
+document.getElementById('loginSubmitBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  if(!email || !password){ errEl.textContent = 'Courriel et mot de passe requis.'; errEl.style.display='block'; return; }
+  const result = await adminLogin(email, password);
+  if(result.error){ errEl.textContent = result.error; errEl.style.display = 'block'; }
+});
+document.getElementById('loginPassword').addEventListener('keydown', e=>{
+  if(e.key==='Enter') document.getElementById('loginSubmitBtn').click();
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  await adminLogout();
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  goToTab('fill');
+});
+
+document.getElementById('changePasswordBtn').addEventListener('click', ()=>{
+  document.getElementById('changePasswordModal').classList.add('active');
+});
+document.getElementById('changePasswordClose').addEventListener('click', ()=>{
+  document.getElementById('changePasswordModal').classList.remove('active');
+});
+document.getElementById('newPasswordSubmitBtn').addEventListener('click', async ()=>{
+  const pass = document.getElementById('newPasswordInput').value;
+  const msgEl = document.getElementById('changePasswordMsg');
+  if(!pass || pass.length<8){ msgEl.style.color='var(--danger)'; msgEl.textContent='Le mot de passe doit avoir au moins 8 caractères.'; return; }
+  const result = await adminChangePassword(pass);
+  if(result.error){ msgEl.style.color='var(--danger)'; msgEl.textContent = result.error; }
+  else{ msgEl.style.color='var(--success)'; msgEl.textContent='Mot de passe changé avec succès.'; document.getElementById('newPasswordInput').value=''; }
+});
 
 /* ===================== CREATE: upload & render ===================== */
 const uploadZone = document.getElementById('uploadZone');
@@ -875,6 +1064,13 @@ function buildTranscriptBlockEl(block, editable){
   const el = document.createElement('div');
   el.className = block.type==='heading' ? 'transcript-heading' : 'transcript-paragraph';
   el.textContent = block.text;
+  if(editable){
+    el.contentEditable = 'true';
+    el.classList.add('is-editable-text');
+    el.spellcheck = false;
+    el.addEventListener('input', ()=>{ block.text = el.textContent; });
+    el.addEventListener('blur', ()=>{ block.text = el.textContent.trim(); el.textContent = block.text; });
+  }
   wrap.appendChild(el);
   if(editable){
     const delBtn = document.createElement('button');
@@ -1211,7 +1407,7 @@ async function callDetectAPI(imageDataUrl, contextNote){
     {type:'image', source:{type:'base64', media_type:'image/jpeg', data: imageDataUrl.split(',')[1]}}
   ];
   const res = await fetch('/api/detect', {
-    method:'POST', headers:{'Content-Type':'application/json'},
+    method:'POST', headers: Object.assign({'Content-Type':'application/json'}, await authHeaders()),
     body: JSON.stringify({ model:'claude-sonnet-5', max_tokens:2000, messages:[{role:'user', content}] })
   });
   const data = await res.json();
@@ -1347,20 +1543,13 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     const small = downscaleCanvas(p.canvas, 1100);
     return { w: p.width, h: p.height, img: small.toDataURL('image/jpeg', 0.65), transcript: (p.transcript||[]).filter(b=>!b.removed).map(b=>({type:b.type, text:b.text, yPct:b.yPct})) };
   });
-  const record = { id, title, createdAt: Date.now(), pages, fields: state.fields.map(f=>({...f})) };
-  const saveOk = await storageSet('form:'+id, record, true);
-  if(!saveOk){
+  const formData = { pages, fields: state.fields.map(f=>({...f})) };
+  const result = await apiSaveForm(id, title, formData);
+  if(!result.ok){
     document.getElementById('shareBoxWrap').innerHTML =
       '<div class="share-box" style="margin-top:12px;border-color:var(--danger);background:#fbeceb;">'+
-      '<strong style="color:var(--danger);">Échec de la sauvegarde.</strong> La base de données Supabase n\u2019a pas répondu correctement — vérifie que le script <code>supabase-schema.sql</code> a bien été exécuté (Supabase → SQL Editor), et que <code>SUPABASE_URL</code>/<code>SUPABASE_ANON_KEY</code> sont corrects sur Vercel. Regarde la console du navigateur (F12) pour le détail de l\u2019erreur.</div>';
+      '<strong style="color:var(--danger);">Échec de la sauvegarde.</strong> '+escapeHtml(result.error||'')+' — vérifie que le script <code>supabase-schema.sql</code> a bien été exécuté, et que <code>SUPABASE_SERVICE_ROLE_KEY</code> est bien configurée sur Vercel. Regarde la console du navigateur (F12) pour le détail.</div>';
     return;
-  }
-  let idx = await storageGet('forms-index', true) || [];
-  idx = idx.filter(x=>x.id!==id);
-  idx.unshift({id, title, createdAt: record.createdAt, pageCount: pages.length, fieldCount: state.fields.length});
-  const idxOk = await storageSet('forms-index', idx, true);
-  if(!idxOk){
-    showToast('Attention : le formulaire est sauvegardé mais n\u2019apparaîtra peut-être pas dans les listes déroulantes (échec de l\u2019index).');
   }
   state.currentFormId = id;
   document.getElementById('shareBoxWrap').innerHTML =
@@ -1377,24 +1566,62 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   document.getElementById('goTestBtn').addEventListener('click', async ()=>{
     goToTab('fill');
     await refreshFillDropdown();
-    document.getElementById('fillFormSelect').value = id;
-    document.getElementById('fillFormSelect').dispatchEvent(new Event('change'));
+    document.getElementById('fillFormPickerInput').value = title;
+    loadFillForm(id);
   });
   showToast('Formulaire enregistré.');
 });
 
 /* ===================== FILL TAB ===================== */
-async function refreshFillDropdown(){
-  const idx = await storageGet('forms-index', true) || [];
-  const sel = document.getElementById('fillFormSelect');
-  const current = sel.value;
-  sel.innerHTML = '<option value="">— Choisir un formulaire —</option>' +
-    idx.map(f=>'<option value="'+f.id+'">'+escapeHtml(f.title)+'</option>').join('');
-  if(current) sel.value = current;
+/* ---------- Composant générique : liste de formulaires avec recherche ---------- */
+function createFormPicker(inputId, listId, onSelect){
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(listId);
+  let allForms = [];
+
+  function renderList(filterText){
+    const q = (filterText||'').trim().toLowerCase();
+    const filtered = q ? allForms.filter(f=>f.title.toLowerCase().includes(q)) : allForms;
+    if(!filtered.length){
+      list.innerHTML = '<div class="form-picker-empty">'+(allForms.length ? 'Aucun formulaire trouvé.' : 'Aucun formulaire enregistré.')+'</div>';
+    } else {
+      list.innerHTML = filtered.map(f=>'<div class="form-picker-item" data-id="'+f.id+'">'+escapeHtml(f.title)+'</div>').join('');
+    }
+    list.classList.add('open');
+  }
+
+  input.addEventListener('focus', ()=> renderList(input.value));
+  input.addEventListener('input', ()=> renderList(input.value));
+  input.addEventListener('blur', ()=> setTimeout(()=>list.classList.remove('open'), 150));
+  list.addEventListener('mousedown', e=>{
+    const item = e.target.closest('.form-picker-item');
+    if(!item) return;
+    const id = item.dataset.id;
+    const form = allForms.find(f=>f.id===id);
+    input.value = form ? form.title : '';
+    list.classList.remove('open');
+    onSelect(id);
+  });
+
+  return {
+    async refresh(){
+      const forms = await apiListForms();
+      if(forms === null){
+        allForms = [];
+        input.value = '';
+        input.placeholder = 'Connecte-toi comme admin…';
+        input.disabled = true;
+        return;
+      }
+      input.disabled = false;
+      input.placeholder = 'Choisir un formulaire…';
+      allForms = forms;
+    },
+    clear(){ input.value = ''; }
+  };
 }
 
-document.getElementById('fillFormSelect').addEventListener('change', async e=>{
-  const id = e.target.value;
+async function loadFillForm(id){
   document.getElementById('fillSuccessMsg').style.display = 'none';
   if(!id){
     document.getElementById('fillEmptyState').style.display='block';
@@ -1402,11 +1629,12 @@ document.getElementById('fillFormSelect').addEventListener('change', async e=>{
     document.getElementById('fillViewToggle').style.display='none';
     return;
   }
-  const record = await storageGet('form:'+id, true);
-  if(!record){ showToast('Formulaire introuvable.'); return; }
-  state.fillForm = record; state.fillValues = {};
+  const form = await apiGetForm(id);
+  if(!form){ showToast('Formulaire introuvable.'); return; }
+  state.fillForm = Object.assign({ id: form.id, title: form.title }, form.data);
+  state.fillValues = {};
   state.fillViewMode = 'simple';
-  document.getElementById('fillStatusLine').textContent = record.pages.length+' page(s) · '+record.fields.length+' champ(s) à remplir';
+  document.getElementById('fillStatusLine').textContent = state.fillForm.pages.length+' page(s) · '+state.fillForm.fields.length+' champ(s) à remplir';
   document.getElementById('fillEmptyState').style.display='none';
   document.getElementById('fillFormArea').style.display='block';
   document.getElementById('fillViewToggle').style.display='flex';
@@ -1415,7 +1643,10 @@ document.getElementById('fillFormSelect').addEventListener('change', async e=>{
   document.getElementById('fillPages').style.display='none';
   renderFillSimpleView();
   renderFillPages();
-});
+}
+
+const fillFormPicker = createFormPicker('fillFormPickerInput', 'fillFormPickerList', loadFillForm);
+async function refreshFillDropdown(){ await fillFormPicker.refresh(); }
 
 document.querySelectorAll('#fillViewToggle .subtab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -1668,8 +1899,11 @@ document.getElementById('submitFillBtn').addEventListener('click', async ()=>{
     showToast('Champs obligatoires manquants : '+missing.map(f=>f.label).join(', '));
     return;
   }
-  const sub = { id: uid(), formId: state.fillForm.id, submittedAt: Date.now(), values: state.fillValues };
-  await storageSet('submission:'+state.fillForm.id+':'+sub.id, sub, true);
+  const result = await apiSubmit(state.fillForm.id, state.fillValues);
+  if(!result.ok){
+    showToast('Échec de l\u2019envoi : ' + (result.error||'erreur inconnue') + '. Réessaie.');
+    return;
+  }
   document.getElementById('fillFormArea').style.display='none';
   document.getElementById('fillSuccessMsg').style.display='block';
 });
@@ -1677,31 +1911,24 @@ document.getElementById('submitFillBtn').addEventListener('click', async ()=>{
 /* ===================== DASHBOARD TAB ===================== */
 let dashState = { form:null, submissions:[], sortKey:'submittedAt', sortDir:'desc' };
 
-async function refreshDashDropdown(){
-  const idx = await storageGet('forms-index', true) || [];
-  const sel = document.getElementById('dashFormSelect');
-  const current = sel.value;
-  sel.innerHTML = '<option value="">— Choisir un formulaire —</option>' +
-    idx.map(f=>'<option value="'+f.id+'">'+escapeHtml(f.title)+' ('+f.fieldCount+' champs)</option>').join('');
-  if(current) sel.value = current;
-}
-
-document.getElementById('dashFormSelect').addEventListener('change', async e=>{
-  const id = e.target.value;
+async function loadDashForm(id){
   if(!id){
     document.getElementById('dashEmptyState').style.display='block';
     document.getElementById('dashTableWrap').style.display='none';
     return;
   }
-  const record = await storageGet('form:'+id, true);
-  const keys = await storageList('submission:'+id+':', true);
-  const subs = [];
-  for(const k of keys){ const s = await storageGet(k, true); if(s) subs.push(s); }
-  dashState.form = record; dashState.submissions = subs;
+  const form = await apiGetForm(id);
+  const rawSubs = await apiGetSubmissions(id);
+  const subs = rawSubs.map(s=>({ id: s.id, submittedAt: new Date(s.submitted_at).getTime(), values: s.values }));
+  dashState.form = form ? Object.assign({ id: form.id, title: form.title }, form.data) : null;
+  dashState.submissions = subs;
   document.getElementById('dashEmptyState').style.display='none';
   document.getElementById('dashTableWrap').style.display='block';
   renderDashTable();
-});
+}
+
+const dashFormPicker = createFormPicker('dashFormPickerInput', 'dashFormPickerList', loadDashForm);
+async function refreshDashDropdown(){ await dashFormPicker.refresh(); }
 
 document.getElementById('dashSearch').addEventListener('input', renderDashTable);
 
@@ -1912,28 +2139,63 @@ document.getElementById('fabTryParticipant').addEventListener('click', ()=>{
   window.scrollTo({top:0, behavior:'smooth'});
 });
 
+(async function initialAuthGate(){
+  const hash = location.hash.replace('#','');
+  if(hash) return; // un lien précis (participant ou route) gère son propre affichage
+  await authReady;
+  if(!isAdminLoggedIn()){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('adminLoginGate').dataset.pendingTab = 'create';
+    document.getElementById('adminLoginGate').style.display = 'block';
+  }
+})();
+
 (async function applyRouteFromHash(){
   const hash = location.hash.replace('#','');
   if(!hash) return;
   if(hash === 'fill' || hash.indexOf('fill=')===0){
-    goToTab('fill');
-    await refreshFillDropdown();
     const parts = hash.split('=');
-    if(parts.length>1 && parts[1]){
-      const sel = document.getElementById('fillFormSelect');
-      sel.value = parts[1];
-      sel.dispatchEvent(new Event('change'));
-      // Lien direct vers un formulaire précis : c'est un participant, pas le créateur.
-      // On cache l'accès aux autres écrans pour éviter les accidents (PAS une vraie sécurité :
-      // enlever le #fill=... de l'adresse redonne accès à tout — utile en attendant une vraie
-      // authentification).
-      const createTab = document.querySelector('.tab-btn[data-tab="create"]');
-      const dashTab = document.querySelector('.tab-btn[data-tab="dashboard"]');
-      if(createTab) createTab.style.display = 'none';
-      if(dashTab) dashTab.style.display = 'none';
+    const formId = parts.length>1 ? parts[1] : null;
+
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-fill').classList.add('active');
+
+    if(formId){
+      // Lien direct vers un formulaire précis : c'est un participant, pas l'admin.
+      // On cache toute la navigation — le participant ne voit QUE le formulaire à
+      // remplir. Ceci est une simplification d'interface, PAS la sécurité réelle :
+      // la vraie protection est côté serveur (RLS + fonctions admin protégées).
+      const tabsBar = document.querySelector('header .tabs');
+      if(tabsBar) tabsBar.style.display = 'none';
+      const notice = document.querySelector('.notice');
+      if(notice) notice.style.display = 'none';
       const fab = document.getElementById('fabTryParticipant');
       if(fab) fab.style.display = 'none';
-      sel.style.display = 'none';
+      document.getElementById('fillFormPicker').style.display = 'none';
+      document.getElementById('fillStatusLine').style.display = 'none';
+
+      document.getElementById('fillSuccessMsg').style.display = 'none';
+      const form = await apiGetForm(formId);
+      if(!form){
+        document.getElementById('fillEmptyState').style.display = 'block';
+        document.getElementById('fillEmptyState').textContent = 'Ce lien de formulaire est introuvable ou a été retiré.';
+        document.getElementById('fillFormArea').style.display = 'none';
+        return;
+      }
+      state.fillForm = Object.assign({ id: form.id, title: form.title }, form.data);
+      state.fillValues = {};
+      state.fillViewMode = 'simple';
+      document.getElementById('fillEmptyState').style.display = 'none';
+      document.getElementById('fillFormArea').style.display = 'block';
+      document.getElementById('fillViewToggle').style.display = 'none';
+      document.getElementById('fillSimpleView').style.display = 'block';
+      document.getElementById('fillPages').style.display = 'none';
+      renderFillSimpleView();
+    } else {
+      goToTab('fill');
+      await refreshFillDropdown();
     }
   } else if(hash === 'dashboard'){
     goToTab('dashboard');

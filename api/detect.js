@@ -1,10 +1,20 @@
 // api/detect.js
+// ADMIN SEULEMENT — nécessite une session Supabase valide (évite que
+// n'importe qui déclenche des appels IA payants sur ton compte Anthropic).
 // Proxy sécurisé vers l'API Anthropic — garde ANTHROPIC_API_KEY côté serveur,
 // jamais exposée au navigateur.
+
+const { verifyAdmin } = require('./_lib/verifyAdmin');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: { message: 'Méthode non autorisée. Utilise POST.' } });
+    return;
+  }
+
+  const user = await verifyAdmin(req);
+  if (!user) {
+    res.status(401).json({ error: { message: 'Non autorisé. Connecte-toi comme admin.' } });
     return;
   }
 
