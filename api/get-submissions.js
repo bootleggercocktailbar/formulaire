@@ -1,5 +1,6 @@
-// api/get-submissions.js
-// ADMIN SEULEMENT — nécessite une session Supabase valide.
+// api/get-submission.js
+// ADMIN SEULEMENT — nécessite une session Supabase valide. Utilisée pour le
+// lien direct envoyé par courriel vers une réponse précise.
 
 const { verifyAdmin } = require('./_lib/verifyAdmin');
 
@@ -10,25 +11,37 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const formId = (req.query && req.query.formId) || '';
-  if (!formId) {
-    res.status(400).json({ error: { message: 'Paramètre "formId" requis.' } });
+  const id = (req.query && req.query.id) || '';
+  if (!id) {
+    res.status(400).json({ error: { message: 'Paramètre "id" requis.' } });
     return;
   }
 
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const headers = { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY };
 
   try {
-    const r = await fetch(
-      SUPABASE_URL + '/rest/v1/submissions?form_id=eq.' + encodeURIComponent(formId) + '&select=id,submitted_at,values&order=submitted_at.desc',
-      { headers: { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY } }
+    const subRes = await fetch(
+      SUPABASE_URL + '/rest/v1/submissions?id=eq.' + encodeURIComponent(id) + '&select=id,form_id,submitted_at,values',
+      { headers }
     );
-    const rows = await r.json();
-    if (!r.ok) throw new Error(JSON.stringify(rows));
-    res.status(200).json({ submissions: rows });
+    const subRows = await subRes.json();
+    if (!subRes.ok) throw new Error(JSON.stringify(subRows));
+    if (!subRows.length) { res.status(404).json({ error: { message: 'Réponse introuvable.' } }); return; }
+    const submission = subRows[0];
+
+    const formRes = await fetch(
+      SUPABASE_URL + '/rest/v1/forms?id=eq.' + encodeURIComponent(submission.form_id) + '&select=id,title,data',
+      { headers }
+    );
+    const formRows = await formRes.json();
+    if (!formRes.ok) throw new Error(JSON.stringify(formRows));
+    if (!formRows.length) { res.status(404).json({ error: { message: 'Formulaire associé introuvable.' } }); return; }
+
+    res.status(200).json({ submission, form: formRows[0] });
   } catch (err) {
-    console.error('get-submissions error:', err);
+    console.error('get-submission error:', err);
     res.status(500).json({ error: { message: String(err) } });
   }
 };

@@ -1,37 +1,46 @@
-// api/get-form.js
-// PUBLIC — aucune connexion requise. Un participant qui a le lien d'un
-// formulaire (#fill=ID) a besoin de pouvoir le charger. Utilise la clé
-// service_role côté serveur uniquement : le navigateur n'a jamais un accès
-// direct à la table "forms".
+// api/detect.js
+// ADMIN SEULEMENT — nécessite une session Supabase valide (évite que
+// n'importe qui déclenche des appels IA payants sur ton compte Anthropic).
+// Proxy sécurisé vers l'API Anthropic — garde ANTHROPIC_API_KEY côté serveur,
+// jamais exposée au navigateur.
+
+const { verifyAdmin } = require('./_lib/verifyAdmin');
 
 module.exports = async function handler(req, res) {
-  const id = (req.query && req.query.id) || '';
-  if (!id) {
-    res.status(400).json({ error: { message: 'Paramètre "id" requis.' } });
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: { message: 'Méthode non autorisée. Utilise POST.' } });
     return;
   }
 
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!SUPABASE_URL || !SERVICE_KEY) {
-    res.status(500).json({ error: { message: 'Configuration serveur incomplète (SUPABASE_SERVICE_ROLE_KEY manquante).' } });
+  const user = await verifyAdmin(req);
+  if (!user) {
+    res.status(401).json({ error: { message: 'Non autorisé. Connecte-toi comme admin.' } });
+    return;
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    res.status(500).json({
+      error: { message: "ANTHROPIC_API_KEY n'est pas configurée sur le serveur. Ajoute-la dans les variables d'environnement Vercel." }
+    });
     return;
   }
 
   try {
-    const r = await fetch(
-      SUPABASE_URL + '/rest/v1/forms?id=eq.' + encodeURIComponent(id) + '&select=id,title,data',
-      { headers: { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY } }
-    );
-    const rows = await r.json();
-    if (!r.ok) throw new Error(JSON.stringify(rows));
-    if (!rows.length) {
-      res.status(404).json({ error: { message: 'Formulaire introuvable.' } });
-      return;
-    }
-    res.status(200).json({ form: rows[0] });
+    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify(req.body)
+    });
+
+    const data = await upstream.json();
+    res.status(upstream.status).json(data);
   } catch (err) {
-    console.error('get-form error:', err);
-    res.status(500).json({ error: { message: String(err) } });
+    console.error('Erreur proxy /api/detect:', err);
+    res.status(500).json({ error: { message: 'Erreur serveur lors de l\u2019appel à l\u2019API Anthropic: ' + String(err) } });
   }
 };
