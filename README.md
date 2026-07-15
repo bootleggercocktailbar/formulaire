@@ -1,97 +1,2466 @@
-# Griffe v2 — guide de déploiement (avec connexion admin sécurisée)
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crowd Divertissement — Formulaires</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-Cette version ajoute une vraie protection : seul un administrateur connecté
-peut créer des formulaires et voir les réponses. Les participants n'ont
-jamais besoin de se connecter — ils accèdent uniquement au formulaire précis
-dont ils ont reçu le lien.
+:root{
+  --paper:#F7F7F6;
+  --surface:#FFFFFF;
+  --ink:#14213D;
+  --ink-soft:#4A5169;
+  --accent:#B8862E;
+  --accent-soft:#F1E4C6;
+  --line:#D9D6CC;
+  --danger:#A6432F;
+  --success:#3F6B4F;
+  --type-text:#3A5A8C;
+  --type-date:#2F7A6B;
+  --type-checkbox:#A6743A;
+  --type-signature:#8A5FA8;
+  --type-heading:#6B6558;
+  --radius:10px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'IBM Plex Sans',sans-serif;
+  font-size:15px;
+  line-height:1.5;
+  min-height:100vh;
+}
+h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;color:var(--ink);}
+button{font-family:inherit;cursor:pointer;}
+input{font-family:inherit;}
+.mono{font-family:'IBM Plex Mono',monospace;}
 
-## Ce qui a changé par rapport à la version précédente
+/* ===== Header ===== */
+header{
+  background:var(--surface);
+  border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:50;
+}
+.header-inner{
+  max-width:1280px;margin:0 auto;padding:14px 20px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-logo{height:36px;width:auto;display:block;}
+.brand-text{display:flex;flex-direction:column;line-height:1.1;}
+.brand-text strong{font-family:'Fraunces',serif;font-size:18px;font-weight:600;}
+.brand-text span{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;}
 
-- Le navigateur ne touche plus jamais directement la base de données. Toutes
-  les opérations passent par des fonctions serveur (`/api/*.js`) qui utilisent
-  une clé secrète Supabase (`service_role`), jamais visible dans le navigateur.
-- Créateur et Tableau de bord exigent une connexion (Supabase Auth).
-- Nouvelles tables (`forms`, `submissions`) avec une sécurité stricte au
-  niveau de la base de données (RLS activé, aucun accès direct autorisé —
-  seules les fonctions serveur peuvent lire/écrire).
+.tabs{display:flex;background:var(--paper);border-radius:999px;padding:4px;gap:2px;flex-wrap:wrap;}
+.tab-btn{
+  border:none;background:transparent;padding:9px 16px;border-radius:999px;
+  font-size:13.5px;font-weight:500;color:var(--ink-soft);white-space:nowrap;
+  transition:background .15s,color .15s;
+}
+.tab-btn.active{background:var(--ink);color:#fff;}
+.subtab-btn{
+  border:none;background:transparent;padding:9px 16px;border-radius:999px;
+  font-size:13.5px;font-weight:500;color:var(--ink-soft);white-space:nowrap;
+  transition:background .15s,color .15s;
+}
+.subtab-btn.active{background:var(--ink);color:#fff;}
 
-## Étape 1 — Mettre à jour le schéma Supabase
+.notice{
+  max-width:1280px;margin:14px auto 0;padding:0 20px;
+}
+#adminLoginGate{ max-width:420px; margin:60px auto; padding:0 20px; }
+.login-box{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:28px; }
+.login-box h2{ margin-bottom:8px; }
+.login-box p{ font-size:13px; color:var(--ink-soft); margin-bottom:18px; }
+.login-box .field-group input{ width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+.login-box .field-group{ margin-bottom:14px; }
+.notice-inner{
+  background:var(--accent-soft);border:1px solid #E1CE9C;border-radius:var(--radius);
+  padding:10px 14px;font-size:13px;color:#5A4419;
+}
 
-1. Supabase → ton projet → **SQL Editor** → **New query**
-2. Colle le contenu de `supabase-schema.sql` (nouveau fichier, remplace
-   l'ancien) → **Run**
+main{max-width:1280px;margin:0 auto;padding:24px 20px 80px;}
+.view{display:none;}
+.view.active{display:block;}
 
-Ça crée les tables `forms` et `submissions`. L'ancienne table `kv_store` de
-la version précédente n'est plus utilisée (tu peux la garder ou la supprimer,
-ça ne gêne pas).
+/* ===== Buttons ===== */
+.btn{
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  padding:9px 16px;border-radius:8px;font-size:13.5px;font-weight:500;
+  display:inline-flex;align-items:center;gap:6px;transition:border-color .15s,background .15s;
+}
+.btn:hover{border-color:var(--ink-soft);}
+.btn-primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+.btn-primary:hover{background:#0c1830;}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-accent:hover{background:#A2761F;}
+.btn-sm{padding:6px 11px;font-size:12.5px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn.active-field{outline:2px solid var(--accent);outline-offset:1px;}
 
-## Étape 2 — Créer ton compte admin
+/* ===== Creator layout ===== */
+.create-layout{display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start;}
+@media (max-width:900px){.create-layout{grid-template-columns:1fr;} .sidebar{order:-1;position:static !important;}}
 
-1. Supabase → ton projet → **Authentication** (menu de gauche) → **Users**
-2. Clique **"Add user"** → **"Create new user"**
-3. Email : `information@barbootlegger.com`
-4. Password : `Boot3481`
-5. Coche **"Auto Confirm User"** (pour ne pas avoir à confirmer par courriel)
-6. Créer
+.create-dual{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
+@media (max-width:1150px){.create-dual{grid-template-columns:1fr;}}
+.create-pane{min-width:0;}
+.create-pane-header{
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--ink-soft);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line);
+}
+@keyframes linkFlash{ from{ box-shadow:0 0 0 4px var(--accent); } to{ box-shadow:0 0 0 0 rgba(184,134,46,0); } }
+.link-flash{ animation: linkFlash 1.3s ease; border-radius:6px; }
 
-C'est ce compte que tu utiliseras pour te connecter sur le site. **Change ce
-mot de passe temporaire dès ta première connexion** — un bouton "Mot de
-passe" apparaît en haut du site une fois connecté, à côté de "Se déconnecter".
+.create-home-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.forms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+.form-card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;
+  display:flex;flex-direction:column;gap:8px;position:relative;
+}
+.form-card-title{font-weight:600;font-size:14.5px;color:var(--ink);padding-right:22px;}
+.form-card-meta{font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+.form-card-actions{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+.form-card-star{
+  position:absolute;top:14px;right:14px;background:none;border:none;font-size:16px;cursor:pointer;
+  color:var(--line);line-height:1;
+}
+.form-card-star.active{color:var(--accent);}
+.autosave-indicator{font-size:11.5px;color:var(--success);margin-top:8px;min-height:16px;font-family:'IBM Plex Mono',monospace;}
+.upload-zone{
+  display:block;
+  background:var(--surface);border:2px dashed var(--line);border-radius:var(--radius);
+  padding:48px 20px;text-align:center;color:var(--ink-soft);cursor:pointer;
+}
+.upload-zone strong{color:var(--ink);}
+.upload-zone input{display:none;}
 
-## Étape 3 — Récupérer ta clé secrète service_role
+.sidebar{position:sticky;top:84px;display:flex;flex-direction:column;gap:14px;}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;}
+.card h3{font-size:14px;margin-bottom:10px;}
+.field-group{margin-bottom:12px;}
+.field-group label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;font-family:'IBM Plex Mono',monospace;}
+.field-group input[type=text]{
+  width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;
+}
+.toolbar-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.type-btn{
+  border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 8px;
+  font-size:12px;font-weight:500;text-align:left;display:flex;align-items:center;gap:7px;
+}
+.type-dot{width:9px;height:9px;border-radius:3px;flex:none;}
+.status-line{font-size:12.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+.share-box{background:var(--accent-soft);border:1px solid #E1CE9C;border-radius:8px;padding:12px;font-size:12.5px;}
+.share-box .url{font-family:'IBM Plex Mono',monospace;background:#fff;padding:7px 9px;border-radius:6px;word-break:break-all;margin:8px 0;border:1px solid #E1CE9C;}
 
-1. Supabase → ton projet → **Project Settings** → **API Keys**
-2. Trouve la clé nommée **"service_role"** (parfois appelée "secret key")
-   — attention, ce n'est PAS la même que la clé publique/anon utilisée
-   avant. Clique l'icône œil pour l'afficher, puis copie-la.
-3. **Ne la partage jamais et ne la mets jamais dans le code HTML** — elle
-   donne un accès complet à toute la base de données.
+.pages-col{display:flex;flex-direction:column;gap:18px;cursor:default;}
+.pages-col.placing .page-container{cursor:crosshair;}
+.page-container{position:relative;background:#fff;box-shadow:0 1px 3px rgba(20,33,61,.12),0 8px 24px rgba(20,33,61,.08);border-radius:4px;overflow:hidden;}
+.page-container canvas,.page-container img.page-img{display:block;width:100%;height:auto;}
+.page-overlay{position:absolute;inset:0;}
 
-## Étape 4 — Variables d'environnement sur Vercel
+.field-box{
+  position:absolute;border:2px dashed var(--type-text);border-radius:4px;background:rgba(58,90,140,.08);
+  touch-action:none;user-select:none;min-width:24px;min-height:18px;
+}
+.field-text{border-color:var(--type-text);background:rgba(58,90,140,.08);}
+.field-date{border-color:var(--type-date);background:rgba(47,122,107,.08);}
+.field-checkbox{border-color:var(--type-checkbox);background:rgba(166,116,58,.1);}
+.field-signature{border-color:var(--type-signature);background:rgba(138,95,168,.08);}
+.field-heading{border-color:var(--type-heading);background:rgba(107,101,88,.08);}
+.field-tag{
+  position:absolute;top:-9px;left:4px;font-family:'IBM Plex Mono',monospace;font-size:9px;
+  background:var(--ink);color:#fff;padding:1px 5px;border-radius:3px;letter-spacing:.03em;
+}
+.field-label-input{
+  position:absolute;inset:9px 22px 2px 4px;border:none;background:transparent;font-size:11px;
+  color:var(--ink);font-family:'IBM Plex Mono',monospace;width:calc(100% - 26px);
+}
+.field-label-input:focus{outline:none;background:rgba(255,255,255,.6);}
+.field-del{
+  position:absolute;top:-9px;right:-7px;width:16px;height:16px;border-radius:50%;border:none;
+  background:var(--danger);color:#fff;font-size:11px;line-height:1;padding:0;
+}
+.field-req{
+  position:absolute;top:-9px;right:14px;width:16px;height:16px;border-radius:50%;
+  background:#fff;color:var(--ink-soft);font-size:11px;font-weight:700;line-height:1;padding:0;
+  border:1px solid var(--line);
+}
+.field-req.active{background:var(--danger);color:#fff;border-color:var(--danger);}
+.field-box.field-required{border-style:solid;}
+.required-mark{color:var(--danger);margin-left:3px;font-weight:700;}
+.field-missing{outline:2px solid var(--danger);outline-offset:2px;border-radius:8px;}
+.resize-handle{
+  position:absolute;right:0;bottom:0;width:12px;height:12px;cursor:nwse-resize;
+  background:linear-gradient(135deg,transparent 50%,var(--ink-soft) 50%);border-bottom-right-radius:4px;
+}
 
-Va dans ton projet Vercel → **Settings → Environment Variables**, et
-assure-toi d'avoir ces 3 variables (les 2 premières existaient déjà) :
+.empty-state{
+  background:var(--surface);border:1px dashed var(--line);border-radius:var(--radius);
+  padding:50px 20px;text-align:center;color:var(--ink-soft);
+}
 
-| Nom | Valeur |
-|---|---|
-| `SUPABASE_URL` | ton Project URL Supabase (déjà configuré) |
-| `SUPABASE_ANON_KEY` | ta clé publique/anon (déjà configuré) |
-| `SUPABASE_SERVICE_ROLE_KEY` | **nouvelle** — ta clé service_role de l'étape 3 |
+/* Créateur — liste simple */
+.create-simple-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start;}
+.create-simple-card.required{border-left:4px solid var(--danger);}
+.create-simple-card.is-heading{background:var(--paper);border-style:dashed;}
+.create-simple-card.is-heading .csc-label-input{font-weight:600;font-style:italic;background:transparent;border-color:transparent;}
+.csc-reorder{display:flex;flex-direction:column;gap:3px;flex:none;}
+.csc-reorder button{width:24px;height:22px;border:1px solid var(--line);background:var(--paper);border-radius:4px;font-size:10px;line-height:1;padding:0;color:var(--ink-soft);}
+.csc-reorder button:disabled{opacity:.3;}
+.csc-main{flex:1;min-width:0;}
+.csc-row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.csc-label-input{flex:1;min-width:140px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;}
+.csc-type-select{padding:8px;border:1px solid var(--line);border-radius:6px;font-size:12px;background:#fff;color:var(--ink);}
+.csc-page-wrap{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+.csc-page-input{width:44px;padding:7px 5px;border:1px solid var(--line);border-radius:6px;font-size:12px;text-align:center;}
+.csc-actions{display:flex;gap:6px;align-items:center;flex:none;}
+.csc-req-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:#fff;font-weight:700;color:var(--ink-soft);flex:none;}
+.csc-req-btn.active{background:var(--danger);color:#fff;border-color:var(--danger);}
+.csc-del-btn{width:28px;height:28px;border-radius:50%;border:none;background:var(--danger);color:#fff;font-size:14px;flex:none;}
+.csc-empty{color:var(--ink-soft);font-size:13px;padding:36px 20px;text-align:center;background:var(--surface);border:1px dashed var(--line);border-radius:var(--radius);}
+.csc-move-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-size:10px;flex:none;}
+.csc-move-btn:hover{background:var(--paper);}
+.insert-point{position:relative;height:15px;display:flex;align-items:center;justify-content:center;}
+.insert-point::before{
+  content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:var(--accent);opacity:0;transition:opacity .15s;
+}
+.insert-point:hover::before{opacity:.5;}
+.insert-plus{
+  position:relative;z-index:2;width:20px;height:20px;border-radius:50%;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-soft);font-size:13px;line-height:1;opacity:0;transition:opacity .15s,background .15s,color .15s;cursor:pointer;
+}
+.insert-point:hover .insert-plus, .insert-point:has(.insert-menu.open) .insert-plus{opacity:1;}
+.insert-plus:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.insert-menu{
+  display:none;flex-direction:column;gap:2px;position:absolute;top:100%;left:50%;transform:translateX(-50%);z-index:20;
+  background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(20,33,61,.18);padding:6px;min-width:180px;
+}
+.insert-menu.open{display:flex;}
+.insert-menu-btn{border:none;background:transparent;padding:8px 10px;text-align:left;border-radius:6px;font-size:12.5px;color:var(--ink);}
+.insert-menu-btn:hover{background:var(--paper);}
+.transcript-heading{font-family:'Fraunces',serif;font-weight:600;font-size:16px;color:var(--ink);margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);}
+.transcript-heading:first-child{margin-top:0;}
+.transcript-paragraph{font-size:13px;line-height:1.65;color:var(--ink-soft);margin:0 0 14px;padding:0 2px;}
+.transcript-block-wrap{position:relative;}
+.transcript-block-wrap:hover .transcript-del-btn{opacity:1;}
+.is-editable-text{cursor:text;border-radius:4px;transition:background .15s;padding:2px 4px;margin:0 -4px;}
+.is-editable-text:hover{background:var(--accent-soft);}
+.is-editable-text:focus{outline:2px solid var(--accent);background:#fff;}
+.transcript-del-btn{
+  position:absolute;top:0;right:-4px;width:22px;height:22px;border-radius:50%;border:none;
+  background:var(--danger);color:#fff;font-size:13px;line-height:1;opacity:0;transition:opacity .15s;cursor:pointer;
+}
+.ro-value{font-size:14.5px;font-weight:500;color:var(--ink);padding:9px 12px;background:var(--paper);border-radius:8px;word-break:break-word;}
+.ro-value.ro-empty{color:var(--ink-soft);font-weight:400;font-style:italic;}
 
-Coche **Production** pour chacune. Ajoute aussi `ANTHROPIC_API_KEY` si tu
-veux la détection automatique (optionnel, voir version précédente du guide).
+/* ===== Fill mode ===== */
+.fill-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;background:#fff;color:var(--ink);}
 
-## Étape 5 — Déployer le nouveau code
+.form-picker{position:relative;width:280px;flex:none;}
+.form-picker-input-wrap{position:relative;display:flex;align-items:center;}
+.form-picker-icon{position:absolute;left:11px;color:var(--ink-soft);pointer-events:none;}
+.form-picker-input{
+  width:100%;padding:9px 12px 9px 34px;border:1px solid var(--line);border-radius:8px;
+  font-size:13.5px;background:#fff;color:var(--ink);
+}
+.form-picker-input:focus{outline:none;border-color:var(--accent);}
+.form-picker-input:disabled{background:var(--paper);color:var(--ink-soft);cursor:not-allowed;}
+.form-picker-list{
+  display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;max-height:260px;overflow-y:auto;
+  background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(20,33,61,.15);
+}
+.form-picker-list.open{display:block;}
+.form-picker-item{padding:10px 12px;font-size:13.5px;color:var(--ink);cursor:pointer;}
+.form-picker-item:hover, .form-picker-item.active{background:var(--paper);}
+.form-picker-empty{padding:14px 12px;font-size:12.5px;color:var(--ink-soft);text-align:center;}
+.fill-field{position:absolute;}
+.fill-input{
+  width:100%;height:100%;border:none;border-bottom:2px solid var(--ink-soft);background:transparent;
+  font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--ink);padding:0 2px;
+}
+.fill-input:focus{outline:none;border-bottom-color:var(--accent);}
+.fill-checkbox{width:100%;height:100%;accent-color:var(--accent);transform:scale(1.3);}
+.custom-checkbox{
+  width:100%;height:100%;min-width:18px;min-height:18px;border:2px solid var(--ink-soft);border-radius:4px;
+  background:#fff;cursor:pointer;position:relative;box-sizing:border-box;
+}
+.custom-checkbox.checked{border-color:var(--accent);background:var(--accent-soft);}
+.custom-checkbox.checked::after{
+  content:'×';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:1.4em;line-height:1;font-weight:700;color:var(--accent);
+}
+.custom-checkbox:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.simple-checkbox-box{width:30px;height:30px;flex:none;}
+.checklist-group{display:flex;flex-direction:column;gap:2px;}
+.checklist-row{display:flex;align-items:center;gap:12px;padding:9px 4px;border-radius:6px;}
+.checklist-row:hover{background:var(--paper);}
+.checklist-row.field-missing{outline:2px solid var(--danger);outline-offset:0;}
+.checklist-box{width:24px;height:24px;flex:none;}
+.checklist-label{font-size:14px;color:var(--ink);}
+.signature-canvas{width:100%;height:100%;border-bottom:2px solid var(--type-signature);touch-action:none;}
+.sig-clear{
+  position:absolute;right:0;bottom:-22px;font-size:10.5px;border:none;background:none;color:var(--ink-soft);
+  text-decoration:underline;padding:2px;
+}
 
-Remplace `index.html` (et ajoute le nouveau dossier `api/` en entier — il y a
-maintenant plusieurs nouveaux fichiers dedans) dans ton dépôt GitHub, comme
-d'habitude (GitHub Desktop → Commit → Push). Vercel redéploie automatiquement.
+/* Simplified fill view */
+.simple-field{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+.simple-field label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--ink);margin-bottom:9px;}
+.simple-field .type-dot{width:8px;height:8px;border-radius:3px;flex:none;}
+.simple-input{
+  width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;
+  font-family:'IBM Plex Sans',sans-serif;font-size:15px;color:var(--ink);background:var(--paper);
+}
+.simple-input:focus{outline:none;border-color:var(--accent);background:#fff;}
+.simple-checkbox-row{display:flex;align-items:center;gap:10px;}
+.simple-checkbox-row input{width:22px;height:22px;accent-color:var(--accent);}
+.simple-sig-canvas{width:100%;height:130px;border:1px solid var(--line);border-radius:8px;background:var(--paper);touch-action:none;display:block;}
+.simple-page-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);margin-bottom:4px;}
+.simple-heading{
+  font-family:'Fraunces',serif;font-weight:600;font-size:16px;color:var(--ink);
+  margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);
+}
+.simple-heading:first-child{margin-top:0;}
+.success-banner{
+  background:#E7EFE9;border:1px solid #C7DACB;color:var(--success);border-radius:var(--radius);
+  padding:24px;text-align:center;display:none;
+}
+.success-banner h2{color:var(--success);margin-bottom:6px;}
 
-**Important** : le dossier `api/` contient maintenant un sous-dossier
-`_lib/` avec un fichier `verifyAdmin.js` à l'intérieur — assure-toi qu'il est
-bien inclus dans ton envoi (glisse tout le dossier `api` au complet plutôt
-que fichier par fichier, ou utilise GitHub Desktop qui gère ça automatiquement
-si tu remplaces le dossier local en entier).
+/* ===== Dashboard ===== */
+.dash-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+.dash-toolbar input[type=text]{padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;flex:1;min-width:180px;}
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:600px;}
+th{
+  text-align:left;padding:10px 14px;background:var(--paper);border-bottom:1px solid var(--line);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);
+  cursor:pointer;white-space:nowrap;position:sticky;top:0;
+}
+th:hover{color:var(--ink);}
+td{padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#FAF9F6;}
+.doc-btn{
+  display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:#7A5C18;
+  border:1px solid #E1CE9C;border-radius:6px;padding:4px 9px;font-size:11.5px;font-weight:500;
+}
+.check-yes{color:var(--success);font-weight:600;}
 
-## Étape 6 — Redéploie et teste
+/* ===== Modal ===== */
+.modal-backdrop{
+  display:none;position:fixed;inset:0;background:rgba(20,21,25,.55);z-index:100;
+  align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto;
+}
+.modal-backdrop.active{display:flex;}
+.modal-box{background:var(--paper);border-radius:12px;max-width:760px;width:100%;padding:20px;}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.modal-close{border:none;background:var(--surface);border-radius:50%;width:30px;height:30px;font-size:16px;border:1px solid var(--line);}
+.ro-field{position:absolute;display:flex;align-items:flex-end;padding-bottom:1px;}
+.ro-text{font-size:13px;color:var(--ink);border-bottom:1.5px solid var(--ink);font-weight:500;width:100%;}
+.ro-check{font-size:22px;color:var(--success);font-weight:800;}
+.ro-sig img{max-width:100%;max-height:100%;}
 
-1. Une fois déployé, va sur ton site
-2. Clique sur "Créateur" — tu devrais voir un écran de connexion
-3. Connecte-toi avec `information@barbootlegger.com` / `Boot3481`
-4. Change ton mot de passe (bouton "Mot de passe" en haut)
-5. Crée et enregistre un formulaire, copie son lien
-6. Ouvre ce lien dans une fenêtre de navigation privée (pour simuler un
-   participant sans être connecté) — tu ne devrais voir QUE le formulaire,
-   aucun onglet, aucune connexion demandée
-7. Remplis-le, envoie
-8. Reconnecte-toi comme admin, va dans Tableau de bord, choisis ton
-   formulaire — la réponse devrait apparaître
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:10px 18px;border-radius:8px;font-size:13px;z-index:200;opacity:0;transition:opacity .25s;pointer-events:none;
+}
+.toast.show{opacity:1;}
 
-## Limites qui restent à connaître
+.spinner-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);}
+.spinner{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
-- **Un seul compte admin pour l'instant** — tout le monde qui se connecte
-  avec ces identifiants voit tous les formulaires. Si tu veux plusieurs
-  admins avec des accès séparés par organisation, c'est une étape
-  supplémentaire (facile à ajouter plus tard).
-- **Les réponses ne peuvent pas être supprimées ou modifiées** depuis le
-  site pour l'instant (seulement consultées) — à ajouter si besoin.
+#fabTryParticipant{
+  position:fixed;bottom:18px;right:18px;z-index:60;
+  background:var(--accent);color:#fff;border:none;border-radius:999px;
+  padding:13px 18px;font-weight:600;font-size:13px;font-family:'IBM Plex Sans',sans-serif;
+  box-shadow:0 6px 20px rgba(20,33,61,.28);cursor:pointer;
+}
+#fabTryParticipant:active{background:#A2761F;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <img src="data:image/png;base64,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" alt="Crowd Divertissement" class="brand-logo">
+      <div class="brand-text">
+        <strong>Crowd Divertissement</strong>
+        <span>FORMULAIRES</span>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="create">Créateur</button>
+      <button class="tab-btn" data-tab="fill">Aperçu destinataire</button>
+      <button class="tab-btn" data-tab="dashboard">Tableau de bord</button>
+    </div>
+    <div id="authStatus" style="display:none;align-items:center;gap:10px;">
+      <span id="authEmailLabel" style="font-size:12px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;"></span>
+      <button class="btn btn-sm" id="changePasswordBtn">Mot de passe</button>
+      <button class="btn btn-sm" id="logoutBtn">Se déconnecter</button>
+    </div>
+  </div>
+</header>
+
+<div class="notice">
+  <div class="notice-inner">
+    Créateur et Tableau de bord sont réservés à l'administrateur connecté. Les participants n'accèdent qu'au formulaire précis dont ils ont reçu le lien.
+  </div>
+</div>
+
+<div id="adminLoginGate" style="display:none;">
+  <div class="login-box">
+    <h2>Connexion admin</h2>
+    <p>Cette section est réservée à l'administrateur.</p>
+    <div class="field-group">
+      <label>Courriel</label>
+      <input type="email" id="loginEmail" autocomplete="username">
+    </div>
+    <div class="field-group">
+      <label>Mot de passe</label>
+      <input type="password" id="loginPassword" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" id="loginSubmitBtn" style="width:100%;justify-content:center;">Se connecter</button>
+    <p id="loginError" style="color:var(--danger);font-size:13px;margin-top:10px;display:none;"></p>
+  </div>
+</div>
+
+<div id="changePasswordModal" class="modal-backdrop">
+  <div class="modal-box" style="max-width:360px;">
+    <div class="modal-head">
+      <h3>Changer le mot de passe</h3>
+      <button class="modal-close" id="changePasswordClose">×</button>
+    </div>
+    <div class="field-group">
+      <label>Nouveau mot de passe</label>
+      <input type="password" id="newPasswordInput">
+    </div>
+    <button class="btn btn-primary" id="newPasswordSubmitBtn" style="width:100%;justify-content:center;">Confirmer</button>
+    <p id="changePasswordMsg" style="font-size:13px;margin-top:10px;"></p>
+  </div>
+</div>
+
+<main>
+
+  <!-- ===================== CREATE TAB ===================== -->
+  <section class="view active" id="view-create">
+    <div id="createHome">
+      <div class="create-home-header">
+        <h2>Tes formulaires</h2>
+        <button class="btn btn-primary" id="newFormBtn">+ Nouveau formulaire</button>
+      </div>
+      <div class="form-picker" id="createFormPicker" style="width:100%;max-width:420px;margin-bottom:20px;">
+        <div class="form-picker-input-wrap">
+          <svg class="form-picker-icon" viewBox="0 0 20 20" width="15" height="15"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="13" y1="13" x2="18" y2="18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <input type="text" class="form-picker-input" id="createFormSearchInput" placeholder="Rechercher un formulaire…" autocomplete="off">
+        </div>
+      </div>
+      <div id="createFormsGrid" class="forms-grid"></div>
+      <div id="createFormsEmpty" class="empty-state" style="display:none;">Aucun formulaire pour l'instant — clique "+ Nouveau formulaire" pour commencer.</div>
+    </div>
+
+    <div id="uploadZoneWrap" style="display:none;">
+      <button class="btn btn-sm" id="backToHomeBtn" style="margin-bottom:14px;">← Retour à mes formulaires</button>
+      <label class="upload-zone" id="uploadZone" for="fileInput">
+        <strong>Dépose un PDF ici</strong>, ou clique pour en choisir un.<br>
+        <span style="font-size:12.5px;">Le contrat, formulaire ou questionnaire à transformer.</span><br>
+        <span class="btn btn-primary" style="margin-top:14px;pointer-events:none;">Choisir un fichier PDF</span>
+        <input type="file" id="fileInput" accept="application/pdf">
+      </label>
+    </div>
+
+    <div id="createLayout" class="create-layout" style="display:none;">
+      <div style="min-width:0;">
+        <div class="create-dual">
+          <div class="create-pane">
+            <div class="create-pane-header">Formulaire simplifié</div>
+            <div id="createSimpleList"></div>
+          </div>
+          <div class="create-pane">
+            <div class="create-pane-header">Document original (PDF) — clique un champ à gauche pour le localiser ici</div>
+            <div class="pages-col" id="pagesCol"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <div class="card">
+          <button class="btn btn-sm" id="backToHomeBtn2" style="margin-bottom:12px;">← Mes formulaires</button>
+          <h3>Formulaire</h3>
+          <div class="field-group">
+            <label>Titre</label>
+            <input type="text" id="formTitleInput" placeholder="Ex. Contrat mandataire — avril 2026">
+          </div>
+          <div class="field-group">
+            <label>Courriel de notification (optionnel)</label>
+            <input type="email" id="notifyEmailInput" placeholder="ex. equipe@barbootlegger.com">
+          </div>
+          <button class="btn btn-accent" id="detectBtn" style="width:100%;justify-content:center;">Détecter les champs automatiquement</button>
+          <div id="detectStatus" style="margin-top:8px;"></div>
+          <p class="autosave-indicator" id="autosaveIndicator"></p>
+        </div>
+
+        <div class="card">
+          <h3>Ajouter un champ manuellement</h3>
+          <div class="toolbar-grid">
+            <button class="type-btn" data-type="text"><span class="type-dot" style="background:var(--type-text);"></span>Texte</button>
+            <button class="type-btn" data-type="date"><span class="type-dot" style="background:var(--type-date);"></span>Date</button>
+            <button class="type-btn" data-type="checkbox"><span class="type-dot" style="background:var(--type-checkbox);"></span>Case à cocher</button>
+            <button class="type-btn" data-type="signature"><span class="type-dot" style="background:var(--type-signature);"></span>Signature</button>
+            <button class="type-btn" data-type="heading" style="grid-column:1/-1;"><span class="type-dot" style="background:var(--type-heading);"></span>Titre / instruction (contexte)</button>
+          </div>
+          <p style="font-size:11.5px;color:var(--ink-soft);margin:10px 0 0;">Ces boutons ajoutent à la toute fin du document. Pour insérer précisément entre deux éléments, survole la liste à gauche et clique le <strong>+</strong> qui apparaît. Les flèches ▲▼ sur chaque champ permettent aussi de le déplacer.</p>
+        </div>
+
+        <div class="card">
+          <h3>État</h3>
+          <p class="status-line" id="statusLine">0 page · 0 champ</p>
+          <p class="status-line" id="removedBlocksInfo" style="display:none;color:var(--danger);margin-top:6px;"></p>
+          <button class="btn btn-primary" id="saveBtn" style="width:100%;justify-content:center;margin-top:10px;">Enregistrer et générer le lien</button>
+          <div id="shareBoxWrap"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FILL TAB ===================== -->
+  <section class="view" id="view-fill">
+    <div class="fill-toolbar">
+      <div class="form-picker" id="fillFormPicker">
+        <div class="form-picker-input-wrap">
+          <svg class="form-picker-icon" viewBox="0 0 20 20" width="15" height="15"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="13" y1="13" x2="18" y2="18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <input type="text" class="form-picker-input" id="fillFormPickerInput" placeholder="Choisir un formulaire…" autocomplete="off">
+        </div>
+        <div class="form-picker-list" id="fillFormPickerList"></div>
+      </div>
+      <span class="status-line" id="fillStatusLine"></span>
+      <div class="tabs" id="fillViewToggle" style="display:none;">
+        <button class="subtab-btn active" data-view="simple">Formulaire simplifié</button>
+        <button class="subtab-btn" data-view="overlay">Document original</button>
+      </div>
+    </div>
+
+    <div id="fillEmptyState" class="empty-state">Choisis un formulaire ci-dessus pour simuler ce que verrait un destinataire.</div>
+
+    <div id="fillFormArea" style="display:none;">
+      <div id="fillSimpleView"></div>
+      <div class="pages-col" id="fillPages" style="display:none;"></div>
+      <button class="btn btn-primary" id="submitFillBtn" style="margin-top:16px;">Envoyer mes réponses</button>
+    </div>
+
+    <div class="success-banner" id="fillSuccessMsg">
+      <h2>Réponse envoyée</h2>
+      <p>Cette soumission apparaît maintenant dans le tableau de bord.</p>
+    </div>
+  </section>
+
+  <!-- ===================== DASHBOARD TAB ===================== -->
+  <section class="view" id="view-dashboard">
+    <div class="dash-toolbar">
+      <div class="form-picker" id="dashFormPicker">
+        <div class="form-picker-input-wrap">
+          <svg class="form-picker-icon" viewBox="0 0 20 20" width="15" height="15"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="13" y1="13" x2="18" y2="18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <input type="text" class="form-picker-input" id="dashFormPickerInput" placeholder="Choisir un formulaire…" autocomplete="off">
+        </div>
+        <div class="form-picker-list" id="dashFormPickerList"></div>
+      </div>
+      <input type="text" id="dashSearch" placeholder="Rechercher dans les réponses…">
+    </div>
+    <div id="dashEmptyState" class="empty-state">Choisis un formulaire pour voir ses réponses.</div>
+    <div class="table-wrap" id="dashTableWrap" style="display:none;">
+      <table id="dashTable"><thead></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+</main>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Document rempli</h3>
+      <button class="modal-close" id="modalClose">×</button>
+    </div>
+    <div class="pages-col" id="modalPages"></div>
+  </div>
+</div>
+
+<button id="fabTryParticipant" title="Essayer comme un participant">📱 Essayer comme participant</button>
+<div class="toast" id="toast"></div>
+
+<script>
+window.addEventListener('error', function(e){
+  console.error('Erreur globale capturée:', e.error || e.message);
+  try{ showToast('Erreur : ' + (e.message || 'voir la console du navigateur')); }catch(_){}
+});
+
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+} else {
+  console.error('pdfjsLib ne s\'est pas chargé depuis cdnjs.');
+}
+
+const TYPE_LABELS = {text:'TEXTE', date:'DATE', checkbox:'CASE', signature:'SIGNATURE', heading:'CONTEXTE'};
+const DEFAULTS = {text:{w:26,h:4.5}, date:{w:15,h:4.5}, checkbox:{w:4,h:4}, signature:{w:26,h:9}, heading:{w:80,h:3.5}};
+const SIZE_PRESETS = {
+  text:      { s:{w:13,h:2.4},  m:{w:22,h:3.6},       l:{w:85,h:14} },
+  date:      { s:{w:10,h:2.4},  m:{w:14,h:3.6},       l:{w:28,h:4.5} },
+  checkbox:  { s:{w:2.2,h:2.2}, m:{w:3,h:3},          l:{w:4.5,h:4.5} },
+  signature: { s:{w:16,h:5.5},  m:DEFAULTS.signature, l:{w:40,h:11} },
+  heading:   { s:{w:50,h:3},    m:DEFAULTS.heading,   l:{w:90,h:5} }
+};
+
+const state = {
+  pdfPages: [],
+  fields: [],
+  pageOverlays: [],
+  placingType: null,
+  currentFormId: null,
+  fillForm: null,
+  fillValues: {},
+  fillPageOverlays: [],
+  fillViewMode: 'simple'
+};
+
+function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ---------- Authentification admin (Supabase Auth) ---------- */
+let authClient = null;
+let authSession = null;
+
+const authReady = (async () => {
+  try{
+    const res = await fetch('/api/config');
+    const cfg = await res.json();
+    if(!cfg.supabaseUrl || !cfg.supabaseAnonKey){
+      console.error('Config Supabase manquante — vérifie SUPABASE_URL / SUPABASE_ANON_KEY sur Vercel.');
+      return;
+    }
+    authClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    const { data } = await authClient.auth.getSession();
+    authSession = data && data.session ? data.session : null;
+    authClient.auth.onAuthStateChange((_event, session) => {
+      authSession = session;
+      updateAuthUI();
+    });
+  }catch(e){
+    console.error('Impossible de charger la configuration Supabase (/api/config).', e);
+  }
+})();
+
+function isAdminLoggedIn(){ return !!(authSession && authSession.access_token); }
+
+async function authHeaders(){
+  await authReady;
+  if(!authSession) return {};
+  return { 'Authorization': 'Bearer ' + authSession.access_token };
+}
+
+async function adminLogin(email, password){
+  await authReady;
+  if(!authClient) return { error: 'Configuration Supabase manquante.' };
+  const { data, error } = await authClient.auth.signInWithPassword({ email, password });
+  if(error) return { error: error.message };
+  authSession = data.session;
+  updateAuthUI();
+  return { ok: true };
+}
+async function adminLogout(){
+  await authReady;
+  if(authClient) await authClient.auth.signOut();
+  authSession = null;
+  updateAuthUI();
+}
+async function adminChangePassword(newPassword){
+  await authReady;
+  if(!authClient) return { error: 'Configuration Supabase manquante.' };
+  const { error } = await authClient.auth.updateUser({ password: newPassword });
+  if(error) return { error: error.message };
+  return { ok: true };
+}
+
+/* ---------- Appels aux fonctions serveur sécurisées (remplacent l'ancien storage direct) ---------- */
+async function apiListForms(){
+  try{
+    const res = await fetch('/api/list-forms', { headers: await authHeaders() });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Erreur HTTP '+res.status));
+    return data.forms || [];
+  }catch(e){ console.error('apiListForms', e); return null; }
+}
+async function apiSaveForm(id, title, formData, notifyEmail){
+  try{
+    const res = await fetch('/api/save-form', {
+      method:'POST',
+      headers: Object.assign({'Content-Type':'application/json'}, await authHeaders()),
+      body: JSON.stringify({ id, title, data: formData, notifyEmail: notifyEmail||null })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Erreur HTTP '+res.status));
+    return { ok: true };
+  }catch(e){ console.error('apiSaveForm', e); return { ok:false, error: e.message||String(e) }; }
+}
+async function apiGetForm(id){
+  try{
+    const res = await fetch('/api/get-form?id='+encodeURIComponent(id));
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Erreur HTTP '+res.status));
+    return data.form;
+  }catch(e){ console.error('apiGetForm', e); return null; }
+}
+async function apiSubmit(formId, values){
+  try{
+    const res = await fetch('/api/submit', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ formId, values })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Erreur HTTP '+res.status));
+    return { ok: true };
+  }catch(e){ console.error('apiSubmit', e); return { ok:false, error: e.message||String(e) }; }
+}
+async function apiGetSubmissions(formId){
+  try{
+    const res = await fetch('/api/get-submissions?formId='+encodeURIComponent(formId), { headers: await authHeaders() });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Erreur HTTP '+res.status));
+    return data.submissions || [];
+  }catch(e){ console.error('apiGetSubmissions', e); return []; }
+}
+async function apiToggleFavorite(id, isFavorite){
+  try{
+    const res = await fetch('/api/toggle-favorite', {
+      method:'POST',
+      headers: Object.assign({'Content-Type':'application/json'}, await authHeaders()),
+      body: JSON.stringify({ id, isFavorite })
+    });
+    return res.ok;
+  }catch(e){ console.error('apiToggleFavorite', e); return false; }
+}
+async function apiGetSubmission(id){
+  try{
+    const res = await fetch('/api/get-submission?id='+encodeURIComponent(id), { headers: await authHeaders() });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Erreur HTTP '+res.status));
+    return data;
+  }catch(e){ console.error('apiGetSubmission', e); return null; }
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    if((btn.dataset.tab==='create' || btn.dataset.tab==='dashboard')){
+      await authReady;
+      if(!isAdminLoggedIn()){
+        document.getElementById('adminLoginGate').dataset.pendingTab = btn.dataset.tab;
+        document.getElementById('adminLoginGate').style.display = 'block';
+        document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+        return;
+      }
+    }
+    document.getElementById('adminLoginGate').style.display = 'none';
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='fill') refreshFillDropdown();
+    if(btn.dataset.tab==='create') renderCreateFormsGrid();
+    if(btn.dataset.tab==='dashboard') refreshDashDropdown();
+  });
+});
+function goToTab(name){ document.querySelector('.tab-btn[data-tab="'+name+'"]').click(); }
+
+function updateAuthUI(){
+  const statusEl = document.getElementById('authStatus');
+  const gateEl = document.getElementById('adminLoginGate');
+  if(isAdminLoggedIn()){
+    statusEl.style.display = 'flex';
+    document.getElementById('authEmailLabel').textContent = authSession.user && authSession.user.email || '';
+    gateEl.style.display = 'none';
+    const pendingResponseId = gateEl.dataset.pendingResponseId;
+    if(pendingResponseId){
+      gateEl.dataset.pendingResponseId = '';
+      openResponseFromHash(pendingResponseId);
+      return;
+    }
+    const pending = gateEl.dataset.pendingTab;
+    if(pending){
+      gateEl.dataset.pendingTab = '';
+      goToTab(pending);
+    }
+  } else {
+    statusEl.style.display = 'none';
+  }
+}
+
+document.getElementById('loginSubmitBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  if(!email || !password){ errEl.textContent = 'Courriel et mot de passe requis.'; errEl.style.display='block'; return; }
+  const result = await adminLogin(email, password);
+  if(result.error){ errEl.textContent = result.error; errEl.style.display = 'block'; }
+});
+document.getElementById('loginPassword').addEventListener('keydown', e=>{
+  if(e.key==='Enter') document.getElementById('loginSubmitBtn').click();
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  await adminLogout();
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  goToTab('fill');
+});
+
+document.getElementById('changePasswordBtn').addEventListener('click', ()=>{
+  document.getElementById('changePasswordModal').classList.add('active');
+});
+document.getElementById('changePasswordClose').addEventListener('click', ()=>{
+  document.getElementById('changePasswordModal').classList.remove('active');
+});
+document.getElementById('newPasswordSubmitBtn').addEventListener('click', async ()=>{
+  const pass = document.getElementById('newPasswordInput').value;
+  const msgEl = document.getElementById('changePasswordMsg');
+  if(!pass || pass.length<8){ msgEl.style.color='var(--danger)'; msgEl.textContent='Le mot de passe doit avoir au moins 8 caractères.'; return; }
+  const result = await adminChangePassword(pass);
+  if(result.error){ msgEl.style.color='var(--danger)'; msgEl.textContent = result.error; }
+  else{ msgEl.style.color='var(--success)'; msgEl.textContent='Mot de passe changé avec succès.'; document.getElementById('newPasswordInput').value=''; }
+});
+
+/* ===================== CREATE: accueil (liste des formulaires) ===================== */
+function goToCreateHome(){
+  document.getElementById('createHome').style.display = 'block';
+  document.getElementById('uploadZoneWrap').style.display = 'none';
+  document.getElementById('createLayout').style.display = 'none';
+  document.getElementById('shareBoxWrap').innerHTML = '';
+  state.pdfPages = []; state.fields = []; state.currentFormId = null;
+  document.getElementById('formTitleInput').value = '';
+  document.getElementById('notifyEmailInput').value = '';
+  stopAutosave();
+  renderCreateFormsGrid();
+}
+
+let createFormsCache = [];
+async function renderCreateFormsGrid(){
+  const grid = document.getElementById('createFormsGrid');
+  const emptyEl = document.getElementById('createFormsEmpty');
+  const forms = await apiListForms();
+  createFormsCache = forms || [];
+  const q = (document.getElementById('createFormSearchInput').value||'').trim().toLowerCase();
+  const filtered = q ? createFormsCache.filter(f=>f.title.toLowerCase().includes(q)) : createFormsCache;
+
+  if(!filtered.length){
+    grid.innerHTML = '';
+    emptyEl.style.display = 'block';
+    emptyEl.textContent = createFormsCache.length ? 'Aucun formulaire trouvé.' : "Aucun formulaire pour l'instant — clique \"+ Nouveau formulaire\" pour commencer.";
+    return;
+  }
+  emptyEl.style.display = 'none';
+  grid.innerHTML = '';
+  filtered.forEach(f=>{
+    const card = document.createElement('div'); card.className = 'form-card';
+    const star = document.createElement('button');
+    star.className = 'form-card-star' + (f.is_favorite ? ' active' : '');
+    star.textContent = '★'; star.title = 'Favori';
+    star.addEventListener('click', async ()=>{
+      const newVal = !f.is_favorite;
+      star.classList.toggle('active', newVal);
+      await apiToggleFavorite(f.id, newVal);
+      renderCreateFormsGrid();
+    });
+    card.appendChild(star);
+
+    const title = document.createElement('div'); title.className='form-card-title'; title.textContent = f.title;
+    card.appendChild(title);
+
+    const meta = document.createElement('div'); meta.className='form-card-meta';
+    const d = new Date(f.updated_at || f.created_at);
+    meta.textContent = 'Modifié le ' + d.toLocaleDateString('fr-CA', {year:'numeric',month:'short',day:'numeric'});
+    card.appendChild(meta);
+
+    const actions = document.createElement('div'); actions.className='form-card-actions';
+    const editBtn = document.createElement('button'); editBtn.className='btn btn-sm'; editBtn.textContent='Modifier';
+    editBtn.addEventListener('click', ()=>loadFormIntoEditor(f.id));
+    actions.appendChild(editBtn);
+
+    const dupBtn = document.createElement('button'); dupBtn.className='btn btn-sm'; dupBtn.textContent='Dupliquer';
+    dupBtn.addEventListener('click', ()=>duplicateForm(f.id, f.title));
+    actions.appendChild(dupBtn);
+
+    const dashBtn = document.createElement('button'); dashBtn.className='btn btn-sm'; dashBtn.textContent='Réponses';
+    dashBtn.addEventListener('click', ()=>{
+      goToTab('dashboard');
+      setTimeout(()=>{
+        document.getElementById('dashFormPickerInput').value = f.title;
+        loadDashForm(f.id);
+      }, 50);
+    });
+    actions.appendChild(dashBtn);
+
+    card.appendChild(actions);
+    grid.appendChild(card);
+  });
+}
+document.getElementById('createFormSearchInput').addEventListener('input', renderCreateFormsGrid);
+
+async function duplicateForm(id, currentTitle){
+  showToast('Duplication en cours…');
+  const form = await apiGetForm(id);
+  if(!form){ showToast('Formulaire introuvable.'); return; }
+  const newId = uid();
+  const result = await apiSaveForm(newId, currentTitle + ' (copie)', form.data, null);
+  if(!result.ok){ showToast('Échec de la duplication : '+(result.error||'')); return; }
+  showToast('Formulaire dupliqué.');
+  renderCreateFormsGrid();
+}
+
+function imageDataUrlToCanvas(dataUrl, w, h){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas);
+    };
+    img.onerror = ()=>{
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      resolve(canvas);
+    };
+    img.src = dataUrl;
+  });
+}
+
+async function loadFormIntoEditor(id){
+  showToast('Chargement du formulaire…');
+  const form = await apiGetForm(id);
+  if(!form){ showToast('Formulaire introuvable.'); return; }
+  const pagesData = form.data.pages || [];
+  state.pdfPages = [];
+  for(const p of pagesData){
+    const canvas = await imageDataUrlToCanvas(p.img, p.w, p.h);
+    state.pdfPages.push({ canvas, width: p.w, height: p.h, transcript: (p.transcript||[]).map(b=>({...b, consumed:false, removed:false})) });
+  }
+  state.fields = (form.data.fields || []).map(f=>({...f}));
+  state.currentFormId = id;
+  document.getElementById('formTitleInput').value = form.title;
+  document.getElementById('notifyEmailInput').value = form.notify_email || '';
+  document.getElementById('createHome').style.display = 'none';
+  document.getElementById('uploadZoneWrap').style.display = 'none';
+  document.getElementById('createLayout').style.display = 'grid';
+  renderCreatePages();
+  renderCreateSimpleList();
+  renderShareBox(id, form.title);
+  startAutosave();
+  showToast('Formulaire chargé.');
+}
+
+document.getElementById('newFormBtn').addEventListener('click', ()=>{
+  document.getElementById('createHome').style.display = 'none';
+  document.getElementById('uploadZoneWrap').style.display = 'block';
+  document.getElementById('createLayout').style.display = 'none';
+});
+document.getElementById('backToHomeBtn').addEventListener('click', goToCreateHome);
+document.getElementById('backToHomeBtn2').addEventListener('click', goToCreateHome);
+
+/* ===================== CREATE: upload & render ===================== */
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+['dragover','dragenter'].forEach(ev=>uploadZone.addEventListener(ev, e=>{e.preventDefault(); uploadZone.style.borderColor='#B8862E';}));
+['dragleave','drop'].forEach(ev=>uploadZone.addEventListener(ev, e=>{e.preventDefault(); uploadZone.style.borderColor='';}));
+uploadZone.addEventListener('drop', e=>{
+  const f = e.dataTransfer.files[0];
+  if(f) handleFile(f);
+});
+fileInput.addEventListener('change', e=>{
+  if(e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+/* ---------- Extraction du texte réel du PDF (pour la retranscription) ---------- */
+async function buildPageTranscript(page, viewport, pageHeightPx){
+  const textContent = await page.getTextContent();
+  const raw = textContent.items
+    .filter(it=>it.str && it.str.trim().length>0)
+    .map(it=>{
+      const tx = pdfjsLib.Util.transform(viewport.transform, it.transform);
+      return { str: it.str, x: tx[4], y: tx[5], h: Math.hypot(tx[2], tx[3]) };
+    });
+  if(!raw.length) return [];
+  raw.sort((a,b)=> a.y-b.y || a.x-b.x);
+  const Y_TOL = 4;
+  const lines = [];
+  raw.forEach(it=>{
+    let line = lines.find(l=> Math.abs(l.y - it.y) <= Y_TOL);
+    if(!line){ line = { y: it.y, items: [], h: it.h }; lines.push(line); }
+    line.items.push(it);
+    line.h = Math.max(line.h, it.h);
+  });
+  lines.forEach(l=>{ l.items.sort((a,b)=>a.x-b.x); l.text = l.items.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim(); });
+  const validLines = lines.filter(l=>l.text.length>0).sort((a,b)=>a.y-b.y);
+  if(!validLines.length) return [];
+  const sortedH = validLines.map(l=>l.h).sort((a,b)=>a-b);
+  const medianH = sortedH[Math.floor(sortedH.length/2)] || 10;
+
+  const blocks = [];
+  let current = null, prevY = null;
+  validLines.forEach(l=>{
+    const isHeading = l.h > medianH*1.22;
+    const bigGap = prevY!=null && (l.y - prevY) > medianH*1.25;
+    if(isHeading){
+      if(current){ blocks.push(current); current = null; }
+      blocks.push({type:'heading', text:l.text, y:l.y});
+    } else if(!current || bigGap){
+      if(current) blocks.push(current);
+      current = {type:'paragraph', text:l.text, y:l.y};
+    } else {
+      current.text += ' ' + l.text;
+    }
+    prevY = l.y;
+  });
+  if(current) blocks.push(current);
+  blocks.forEach(b=>{ b.yPct = clamp(b.y / pageHeightPx * 100, 0, 100); b.consumed = false; });
+  return blocks;
+}
+
+function normText(s){ return (s||'').toLowerCase().replace(/[^a-z0-9à-öø-ÿ]+/g,' ').trim(); }
+
+function markConsumedBlocksGeneric(pages, fields, pageIndex){
+  const page = pages[pageIndex];
+  if(!page || !page.transcript) return;
+  const blocks = page.transcript;
+  blocks.forEach(b=>{ b.consumed = false; });
+  fields.filter(f=>f.page===pageIndex && f.type!=='heading').forEach(f=>{
+    const fLabel = normText(f.label);
+    if(!fLabel) return;
+    let best=null, bestDist=Infinity;
+    blocks.forEach(b=>{
+      if(b.consumed) return;
+      const bText = normText(b.text);
+      if(!bText) return;
+      const closeMatch = bText===fLabel ||
+        (bText.includes(fLabel) && bText.length <= fLabel.length*3) ||
+        (fLabel.includes(bText) && fLabel.length <= bText.length*3);
+      if(closeMatch){
+        const dist = Math.abs(b.yPct - f.y);
+        if(dist < bestDist){ bestDist = dist; best = b; }
+      }
+    });
+    if(best && bestDist < 8) best.consumed = true;
+  });
+}
+
+function getPageTimelineGeneric(pages, fields, pageIndex){
+  const page = pages[pageIndex];
+  const blocks = (page && page.transcript || []).filter(b=>!b.consumed && !b.removed);
+  const pageFields = fields.filter(f=>f.page===pageIndex);
+  const items = [
+    ...blocks.map(b=>({kind:'block', y:b.yPct, block:b})),
+    ...pageFields.map(f=>({kind:'field', y:f.y, field:f}))
+  ];
+  items.sort((a,b)=>a.y-b.y);
+  return items;
+}
+
+function markConsumedBlocksForPage(pageIndex){
+  markConsumedBlocksGeneric(state.pdfPages, state.fields, pageIndex);
+}
+
+function getPageTimeline(pageIndex){
+  return getPageTimelineGeneric(state.pdfPages, state.fields, pageIndex);
+}
+
+async function handleFile(file){
+  if(typeof pdfjsLib === 'undefined'){
+    document.getElementById('uploadZoneWrap').innerHTML =
+      '<div class="upload-zone" style="cursor:default;"><strong>La librairie de lecture PDF n\'a pas pu se charger.</strong><br>'+
+      'Le réseau de cet aperçu bloque probablement cdnjs.cloudflare.com. Essaie de recharger la page, ou ouvre le fichier .html directement dans ton navigateur (hors de Claude) en le téléchargeant d\'abord.</div>';
+    return;
+  }
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  if(!isPdf){ showToast('Merci de choisir un fichier PDF.'); return; }
+  document.getElementById('uploadZone').innerHTML = '<div class="spinner-row" style="justify-content:center;"><div class="spinner"></div> Chargement du PDF…</div>';
+  try{
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    state.pdfPages = [];
+    for(let i=1;i<=pdf.numPages;i++){
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({scale: 1.4});
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
+      let transcript = [];
+      try{ transcript = await buildPageTranscript(page, viewport, viewport.height); }
+      catch(e){ console.warn('Extraction de texte échouée pour la page '+i, e); }
+      state.pdfPages.push({canvas, width: viewport.width, height: viewport.height, transcript});
+    }
+    state.fields = [];
+    state.currentFormId = null;
+    document.getElementById('formTitleInput').value = file.name.replace(/\.pdf$/i,'');
+    document.getElementById('uploadZoneWrap').style.display = 'none';
+    document.getElementById('createLayout').style.display = 'grid';
+    document.getElementById('shareBoxWrap').innerHTML = '';
+    renderCreatePages();
+    renderCreateSimpleList();
+    startAutosave();
+  }catch(err){
+    console.error(err);
+    document.getElementById('uploadZone').innerHTML = '<strong>Erreur de lecture du PDF.</strong> Réessaie avec un autre fichier.';
+  }
+}
+
+function renderCreatePages(){
+  const col = document.getElementById('pagesCol');
+  col.innerHTML = '';
+  state.pageOverlays = [];
+  state.pdfPages.forEach((p, idx)=>{
+    const wrap = document.createElement('div'); wrap.className = 'page-container';
+    wrap.appendChild(p.canvas);
+    const overlay = document.createElement('div'); overlay.className = 'page-overlay';
+    wrap.appendChild(overlay);
+    overlay.addEventListener('click', e=>{
+      if(!state.placingType) return;
+      if(e.target.closest('.field-box')) return;
+      const rect = overlay.getBoundingClientRect();
+      const x = (e.clientX-rect.left)/rect.width*100;
+      const y = (e.clientY-rect.top)/rect.height*100;
+      placeField(state.placingType, idx, x, y, overlay);
+      state.placingType = null;
+      document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active-field'));
+    });
+    col.appendChild(wrap);
+    state.pageOverlays[idx] = overlay;
+  });
+  updateStatusLine();
+}
+
+function findOverlayEl(f){
+  const overlay = state.pageOverlays[f.page];
+  return overlay ? overlay.querySelector('[data-id="'+f.id+'"]') : null;
+}
+function syncOverlayLabel(f){
+  const el = findOverlayEl(f);
+  const input = el && el.querySelector('.field-label-input');
+  if(input && input.value !== f.label) input.value = f.label;
+}
+function syncOverlayRequired(f){
+  const el = findOverlayEl(f);
+  if(!el) return;
+  el.classList.toggle('field-required', !!f.required);
+  const btn = el.querySelector('.field-req');
+  if(btn) btn.classList.toggle('active', !!f.required);
+}
+function recreateOverlayField(f){
+  const oldEl = findOverlayEl(f);
+  if(oldEl) oldEl.remove();
+  const overlay = state.pageOverlays[f.page];
+  if(overlay) overlay.appendChild(createFieldElement(f, overlay));
+}
+function moveFieldToPage(f, newPage){
+  const oldEl = findOverlayEl(f);
+  if(oldEl) oldEl.remove();
+  f.page = newPage;
+  const overlay = state.pageOverlays[f.page];
+  if(overlay) overlay.appendChild(createFieldElement(f, overlay));
+}
+
+function renderCreateSimpleList(){
+  const container = document.getElementById('createSimpleList');
+  if(!container) return;
+  container.innerHTML = '';
+  if(!state.pdfPages.length){
+    container.innerHTML = '<div class="csc-empty">Charge un PDF pour commencer.</div>';
+    return;
+  }
+  let any = false;
+  for(let p=0; p<state.pdfPages.length; p++){
+    const timeline = getPageTimeline(p);
+    if(!timeline.length) continue;
+    any = true;
+    const tag = document.createElement('div'); tag.className='simple-page-tag'; tag.textContent='PAGE '+(p+1);
+    container.appendChild(tag);
+    container.appendChild(buildInsertPoint(p, null, timeline[0]));
+    timeline.forEach((item, idx)=>{
+      if(item.kind==='block'){
+        container.appendChild(buildTranscriptBlockEl(item.block, true));
+      } else {
+        container.appendChild(buildCreateSimpleCard(item.field));
+      }
+      container.appendChild(buildInsertPoint(p, item, timeline[idx+1] || null));
+    });
+  }
+  if(!any){
+    container.innerHTML = '<div class="csc-empty">Aucun texte ni champ pour l\u2019instant. Utilise « Détecter les champs automatiquement », ou ajoute-en un avec les boutons ci-contre.</div>';
+  }
+  refreshRemovedBlocksInfo();
+}
+
+function timelineItemY(item){ return item.kind==='block' ? item.block.yPct : item.field.y; }
+
+function buildInsertPoint(pageIndex, beforeItem, afterItem){
+  const wrap = document.createElement('div'); wrap.className='insert-point';
+  const btn = document.createElement('button'); btn.type='button'; btn.className='insert-plus'; btn.textContent='+';
+  btn.title = 'Insérer un champ ici';
+  const menu = document.createElement('div'); menu.className='insert-menu';
+  const types = [['text','Texte'],['date','Date'],['checkbox','Case à cocher'],['signature','Signature'],['heading','Titre / instruction']];
+  types.forEach(([t,label])=>{
+    const b = document.createElement('button'); b.type='button'; b.className='insert-menu-btn'; b.textContent=label;
+    b.addEventListener('click', e=>{
+      e.stopPropagation();
+      const beforeY = beforeItem ? timelineItemY(beforeItem) : 0;
+      const afterY = afterItem ? timelineItemY(afterItem) : 100;
+      const y = (beforeY + afterY) / 2;
+      const overlay = state.pageOverlays[pageIndex];
+      placeField(t, pageIndex, 30, y, overlay);
+      markConsumedBlocksForPage(pageIndex);
+      renderCreateSimpleList();
+      showToast('Champ inséré.');
+    });
+    menu.appendChild(b);
+  });
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    const willOpen = !menu.classList.contains('open');
+    document.querySelectorAll('.insert-menu.open').forEach(m=>m.classList.remove('open'));
+    menu.classList.toggle('open', willOpen);
+  });
+  wrap.appendChild(btn);
+  wrap.appendChild(menu);
+  return wrap;
+}
+document.addEventListener('click', ()=>{
+  document.querySelectorAll('.insert-menu.open').forEach(m=>m.classList.remove('open'));
+});
+
+function buildTranscriptBlockEl(block, editable){
+  const wrap = document.createElement('div');
+  wrap.className = 'transcript-block-wrap';
+  const el = document.createElement('div');
+  el.className = block.type==='heading' ? 'transcript-heading' : 'transcript-paragraph';
+  el.textContent = block.text;
+  if(editable){
+    el.contentEditable = 'true';
+    el.classList.add('is-editable-text');
+    el.spellcheck = false;
+    el.addEventListener('input', ()=>{ block.text = el.textContent; });
+    el.addEventListener('blur', ()=>{ block.text = el.textContent.trim(); el.textContent = block.text; });
+  }
+  wrap.appendChild(el);
+  if(editable){
+    const delBtn = document.createElement('button');
+    delBtn.type='button'; delBtn.className='transcript-del-btn'; delBtn.textContent='×';
+    delBtn.title = 'Retirer cette section du formulaire';
+    delBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      block.removed = true;
+      renderCreateSimpleList();
+    });
+    wrap.appendChild(delBtn);
+  }
+  return wrap;
+}
+
+function countRemovedBlocks(){
+  let n = 0;
+  state.pdfPages.forEach(p=>(p.transcript||[]).forEach(b=>{ if(b.removed) n++; }));
+  return n;
+}
+function restoreRemovedBlocks(){
+  state.pdfPages.forEach(p=>(p.transcript||[]).forEach(b=>{ b.removed=false; }));
+  renderCreateSimpleList();
+}
+function refreshRemovedBlocksInfo(){
+  const el = document.getElementById('removedBlocksInfo');
+  if(!el) return;
+  const n = countRemovedBlocks();
+  if(n>0){
+    el.style.display='block';
+    el.innerHTML = n+' section(s) de texte retirée(s). <button class="btn btn-sm" id="restoreBlocksBtn">Tout restaurer</button>';
+    document.getElementById('restoreBlocksBtn').addEventListener('click', restoreRemovedBlocks);
+  } else {
+    el.style.display='none'; el.innerHTML='';
+  }
+}
+
+function moveFieldInTimeline(f, direction){
+  const timeline = getPageTimeline(f.page);
+  const idx = timeline.findIndex(it=>it.kind==='field' && it.field.id===f.id);
+  if(idx===-1) return;
+  const targetIdx = idx + direction;
+  if(targetIdx<0 || targetIdx>=timeline.length) return;
+  const targetY = timelineItemY(timeline[targetIdx]);
+  if(direction<0){
+    const beforeY = targetIdx>0 ? timelineItemY(timeline[targetIdx-1]) : 0;
+    f.y = clamp((beforeY+targetY)/2, 0, 100-f.h);
+  } else {
+    const afterY = targetIdx<timeline.length-1 ? timelineItemY(timeline[targetIdx+1]) : 100;
+    f.y = clamp((targetY+afterY)/2, 0, 100-f.h);
+  }
+  recreateOverlayField(f);
+  markConsumedBlocksForPage(f.page);
+  renderCreateSimpleList();
+}
+
+function buildCreateSimpleCard(f){
+  const card = document.createElement('div');
+  card.className = 'create-simple-card' + (f.required ? ' required' : '') + (f.type==='heading' ? ' is-heading' : '');
+  card.dataset.id = f.id;
+  card.style.cursor = 'pointer';
+  card.title = 'Cliquer pour localiser ce champ sur le document';
+  card.addEventListener('click', e=>{
+    if(e.target.closest('input,select,button')) return;
+    const el = findOverlayEl(f);
+    if(el){
+      el.scrollIntoView({behavior:'smooth', block:'center'});
+      el.classList.remove('link-flash'); void el.offsetWidth; el.classList.add('link-flash');
+    }
+  });
+
+  const main = document.createElement('div'); main.className='csc-main';
+  const row1 = document.createElement('div'); row1.className='csc-row1';
+
+  const dot = document.createElement('span'); dot.className='type-dot';
+  dot.style.background='var(--type-'+f.type+')'; dot.style.width='10px'; dot.style.height='10px';
+  row1.appendChild(dot);
+
+  const labelInput = document.createElement('input'); labelInput.className='csc-label-input'; labelInput.value=f.label;
+  labelInput.addEventListener('pointerdown', e=>e.stopPropagation());
+  labelInput.addEventListener('input', e=>{ f.label = e.target.value; syncOverlayLabel(f); });
+  row1.appendChild(labelInput);
+
+  const typeSelect = document.createElement('select'); typeSelect.className='csc-type-select';
+  typeSelect.addEventListener('pointerdown', e=>e.stopPropagation());
+  ['text','date','checkbox','signature','heading'].forEach(t=>{
+    const opt = document.createElement('option'); opt.value=t; opt.textContent=TYPE_LABELS[t];
+    if(t===f.type) opt.selected = true;
+    typeSelect.appendChild(opt);
+  });
+  typeSelect.addEventListener('change', e=>{
+    f.type = e.target.value;
+    const preset = SIZE_PRESETS[f.type].m;
+    f.w = preset.w; f.h = preset.h;
+    recreateOverlayField(f);
+    markConsumedBlocksForPage(f.page);
+    renderCreateSimpleList();
+  });
+  row1.appendChild(typeSelect);
+
+  const pageWrap = document.createElement('span'); pageWrap.className='csc-page-wrap';
+  pageWrap.appendChild(document.createTextNode('p.'));
+  const pageInput = document.createElement('input'); pageInput.type='number'; pageInput.className='csc-page-input';
+  pageInput.min=1; pageInput.max=state.pdfPages.length; pageInput.value=f.page+1;
+  pageInput.addEventListener('pointerdown', e=>e.stopPropagation());
+  pageInput.addEventListener('change', e=>{
+    const oldPage = f.page;
+    const newPage = clamp((parseInt(e.target.value)||1)-1, 0, state.pdfPages.length-1);
+    moveFieldToPage(f, newPage);
+    markConsumedBlocksForPage(oldPage);
+    markConsumedBlocksForPage(newPage);
+    renderCreateSimpleList();
+  });
+  pageWrap.appendChild(pageInput);
+  row1.appendChild(pageWrap);
+
+  main.appendChild(row1);
+  card.appendChild(main);
+
+  const actions = document.createElement('div'); actions.className='csc-actions';
+
+  const moveUpBtn = document.createElement('button'); moveUpBtn.type='button'; moveUpBtn.className='csc-move-btn'; moveUpBtn.textContent='▲';
+  moveUpBtn.title = 'Déplacer vers le haut';
+  moveUpBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+  moveUpBtn.addEventListener('click', e=>{ e.stopPropagation(); moveFieldInTimeline(f, -1); });
+  actions.appendChild(moveUpBtn);
+  const moveDownBtn = document.createElement('button'); moveDownBtn.type='button'; moveDownBtn.className='csc-move-btn'; moveDownBtn.textContent='▼';
+  moveDownBtn.title = 'Déplacer vers le bas';
+  moveDownBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+  moveDownBtn.addEventListener('click', e=>{ e.stopPropagation(); moveFieldInTimeline(f, 1); });
+  actions.appendChild(moveDownBtn);
+
+  if(f.type !== 'heading'){
+    const reqBtn = document.createElement('button'); reqBtn.type='button';
+    reqBtn.className='csc-req-btn'+(f.required?' active':''); reqBtn.textContent='*'; reqBtn.title='Obligatoire';
+    reqBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+    reqBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      f.required = !f.required;
+      reqBtn.classList.toggle('active', f.required);
+      card.classList.toggle('required', f.required);
+      syncOverlayRequired(f);
+    });
+    actions.appendChild(reqBtn);
+  }
+
+  const delBtn = document.createElement('button'); delBtn.type='button'; delBtn.className='csc-del-btn'; delBtn.textContent='×';
+  delBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+  delBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    state.fields = state.fields.filter(x=>x.id!==f.id);
+    const el = findOverlayEl(f);
+    if(el) el.remove();
+    markConsumedBlocksForPage(f.page);
+    renderCreateSimpleList();
+    updateStatusLine();
+  });
+  actions.appendChild(delBtn);
+  card.appendChild(actions);
+
+  return card;
+}
+
+document.querySelectorAll('.type-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(!state.pdfPages.length){ showToast('Charge un PDF d\u2019abord.'); return; }
+    const pageIdx = state.pdfPages.length - 1;
+    const overlay = state.pageOverlays[pageIdx];
+    if(!overlay) return;
+    const stack = state.fields.filter(f=>f.page===pageIdx).length % 6;
+    placeField(btn.dataset.type, pageIdx, 30, 90 - stack*3, overlay);
+    markConsumedBlocksForPage(pageIdx);
+    renderCreateSimpleList();
+    showToast('Champ ajouté à la fin du document.');
+  });
+});
+
+function mostVisiblePageIndex(){
+  let best = 0, bestVisible = -Infinity;
+  state.pageOverlays.forEach((ov, i)=>{
+    if(!ov || !ov.parentElement) return;
+    const rect = ov.parentElement.getBoundingClientRect();
+    const visible = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 80);
+    if(visible > bestVisible){ bestVisible = visible; best = i; }
+  });
+  return best;
+}
+
+function placeField(type, page, xPct, yPct, overlay){
+  const d = DEFAULTS[type];
+  const f = {
+    id: uid(), page, type,
+    label: type==='checkbox'?'Case': type==='signature'?'Signature': type==='date'?'Date':'Champ texte',
+    x: clamp(xPct-d.w/2, 0, 100-d.w), y: clamp(yPct-d.h/2, 0, 100-d.h), w: d.w, h: d.h
+  };
+  state.fields.push(f);
+  overlay.appendChild(createFieldElement(f, overlay));
+  updateStatusLine();
+}
+
+function createFieldElement(field, overlay){
+  const el = document.createElement('div');
+  el.className = 'field-box field-'+field.type;
+  el.dataset.id = field.id;
+  el.style.left = field.x+'%'; el.style.top = field.y+'%';
+  el.style.width = field.w+'%'; el.style.height = field.h+'%';
+
+  const tag = document.createElement('span');
+  tag.className = 'field-tag'; tag.textContent = TYPE_LABELS[field.type];
+  tag.style.cursor = 'pointer';
+  tag.title = 'Cliquer pour localiser ce champ dans la liste';
+  tag.addEventListener('pointerdown', e=>e.stopPropagation());
+  tag.addEventListener('click', e=>{
+    e.stopPropagation();
+    const cardEl = document.querySelector('.create-simple-card[data-id="'+field.id+'"]');
+    if(cardEl){
+      cardEl.scrollIntoView({behavior:'smooth', block:'center'});
+      cardEl.classList.remove('link-flash'); void cardEl.offsetWidth; cardEl.classList.add('link-flash');
+    }
+  });
+  el.appendChild(tag);
+
+  const labelInput = document.createElement('input');
+  labelInput.className = 'field-label-input'; labelInput.value = field.label;
+  labelInput.addEventListener('pointerdown', e=>e.stopPropagation());
+  labelInput.addEventListener('input', e=>{ field.label = e.target.value; });
+  el.appendChild(labelInput);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'field-del'; delBtn.textContent = '×'; delBtn.type = 'button';
+  delBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+  delBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    state.fields = state.fields.filter(f=>f.id !== field.id);
+    el.remove(); updateStatusLine();
+  });
+  el.appendChild(delBtn);
+
+  const reqBtn = document.createElement('button');
+  reqBtn.className = 'field-req' + (field.required ? ' active' : '');
+  reqBtn.textContent = '*'; reqBtn.type = 'button';
+  reqBtn.title = 'Marquer ce champ comme obligatoire';
+  reqBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+  reqBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    field.required = !field.required;
+    reqBtn.classList.toggle('active', field.required);
+    el.classList.toggle('field-required', field.required);
+  });
+  el.appendChild(reqBtn);
+  if(field.required) el.classList.add('field-required');
+
+  const resizeHandle = document.createElement('div');
+  resizeHandle.className = 'resize-handle';
+  el.appendChild(resizeHandle);
+
+  el.addEventListener('pointerdown', e=>{
+    if(e.target===delBtn || e.target===labelInput || e.target===resizeHandle || e.target===reqBtn) return;
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    const rect = overlay.getBoundingClientRect();
+    const startX=e.clientX, startY=e.clientY, startLeft=field.x, startTop=field.y;
+    function onMove(ev){
+      const dx=(ev.clientX-startX)/rect.width*100, dy=(ev.clientY-startY)/rect.height*100;
+      field.x = clamp(startLeft+dx, 0, 100-field.w);
+      field.y = clamp(startTop+dy, 0, 100-field.h);
+      el.style.left = field.x+'%'; el.style.top = field.y+'%';
+    }
+    function onUp(){ el.removeEventListener('pointermove', onMove); el.removeEventListener('pointerup', onUp); }
+    el.addEventListener('pointermove', onMove); el.addEventListener('pointerup', onUp);
+  });
+
+  resizeHandle.addEventListener('pointerdown', e=>{
+    e.stopPropagation(); e.preventDefault();
+    resizeHandle.setPointerCapture(e.pointerId);
+    const rect = overlay.getBoundingClientRect();
+    const startX=e.clientX, startY=e.clientY, startW=field.w, startH=field.h;
+    function onMove(ev){
+      const dw=(ev.clientX-startX)/rect.width*100, dh=(ev.clientY-startY)/rect.height*100;
+      field.w = clamp(startW+dw, 4, 100-field.x);
+      field.h = clamp(startH+dh, 3, 100-field.y);
+      el.style.width = field.w+'%'; el.style.height = field.h+'%';
+    }
+    function onUp(){ resizeHandle.removeEventListener('pointermove', onMove); resizeHandle.removeEventListener('pointerup', onUp); }
+    resizeHandle.addEventListener('pointermove', onMove); resizeHandle.addEventListener('pointerup', onUp);
+  });
+
+  return el;
+}
+
+function updateStatusLine(){
+  document.getElementById('statusLine').textContent = state.pdfPages.length+' page(s) · '+state.fields.length+' champ(s)';
+}
+
+/* ---------- AI detection ---------- */
+function downscaleCanvas(canvas, maxWidth){
+  if(canvas.width <= maxWidth) return canvas;
+  const scale = maxWidth/canvas.width;
+  const c2 = document.createElement('canvas');
+  c2.width = maxWidth; c2.height = Math.round(canvas.height*scale);
+  c2.getContext('2d').drawImage(canvas, 0, 0, c2.width, c2.height);
+  return c2;
+}
+
+const DETECT_PROMPT = "Tu es un assistant qui prépare un document PDF pour qu'il devienne un formulaire numérique. Analyse l'image comme le ferait une personne qui doit remplir ce document à la main, en cherchant activement ces indices visuels précis :\n"+
+"1) Un RECTANGLE ou une BOÎTE avec un contour/bordure visible et vide à l'intérieur : si un mot comme 'Signature' ou 'Signé par' apparaît juste avant/au-dessus, type=\"signature\" ; sinon type=\"text\" (ou \"date\" si le mot associé est clairement une date).\n"+
+"2) Une PETITE case carrée (☐, □, un petit carré dessiné, ou une case de type ' [ ] ') : type=\"checkbox\". Positionne le champ EXACTEMENT sur la petite case elle-même, jamais sur le texte à côté.\n"+
+"3) Une LIGNE HORIZONTALE, une suite de tirets/underscores (_______) ou de pointillés laissée vide, en particulier après une mention comme 'Nom :', 'Date :', 'Adresse :', 'Signature :' : positionne le champ sur l'espace vide au-dessus ou sur la ligne, jamais sur le mot lui-même. type=\"text\" ou \"date\" selon le mot associé.\n"+
+"4) Un espace clairement vide après un deux-points, sans ligne ni boîte dessinée, mais où une réponse est manifestement attendue (ex. un formulaire avec des libellés alignés) : type=\"text\".\n"+
+"5) Un TABLEAU à deux colonnes où la colonne de gauche contient un libellé (ex. 'Prénom', 'Nom', 'Courriel', 'Adresse') et la cellule de droite, sur la même ligne, est vide : crée un champ type=\"text\" positionné sur la cellule vide de droite, avec le libellé de la colonne de gauche comme \"label\". Traite chaque ligne du tableau comme un champ séparé.\n"+
+"6) Une liste d'éléments (ex. des postes, des compétences, des options) chacun suivi d'une petite case ou d'un petit rectangle vide aligné à droite du texte : crée un champ type=\"checkbox\" par ligne, positionné sur la petite case elle-même.\n"+
+"Utilise le texte le plus proche comme \"label\". GARDE CHAQUE LABEL TRÈS COURT (1 à 4 mots maximum, ex. 'Nom :' -> \"Nom\").\n"+
+"Ignore complètement : le texte légal/informatif qui ne demande aucune saisie, les tableaux ou sections déjà remplis avec des données, les logos, les titres de section (ils sont gérés séparément).\n"+
+"Sois exhaustif — passe en revue TOUTE l'image avant de conclure qu'il n'y a rien à détecter.\n"+
+"Pour une liste de plusieurs éléments similaires alignés verticalement : fais correspondre l'espacement vertical entre chaque champ à l'espacement RÉEL visible entre les lignes correspondantes sur l'image.\n"+
+"Pour chaque champ, donne uniquement le CENTRE de l'espace vide (pas le coin, pas de largeur ni hauteur précise) et une taille relative. Réponds UNIQUEMENT avec un JSON valide, COMPACT (sans espaces superflus), sans aucun texte avant ou après, sans balises markdown, au format exact suivant: {\"fields\":[{\"type\":\"text\",\"label\":\"Nom\",\"x\":45,\"y\":88,\"size\":\"m\"}]}. Le type doit être l'un de: \"text\", \"date\", \"checkbox\", \"signature\". x et y sont le CENTRE de l'espace, en pourcentage (0 à 100) de la largeur/hauteur de l'IMAGE FOURNIE. \"size\" doit être l'une de: \"s\" (étroit), \"m\" (normal), \"l\" (grand — commentaire, paragraphe, grande signature).";
+
+function clearAutoFields(){
+  state.fields = state.fields.filter(f=>{
+    if(f.auto){
+      const overlay = state.pageOverlays[f.page];
+      const el = overlay && overlay.querySelector('[data-id="'+f.id+'"]');
+      if(el) el.remove();
+      return false;
+    }
+    return true;
+  });
+}
+
+async function callDetectAPI(imageDataUrl, contextNote){
+  const content = [
+    {type:'text', text: DETECT_PROMPT},
+    {type:'text', text: contextNote},
+    {type:'image', source:{type:'base64', media_type:'image/jpeg', data: imageDataUrl.split(',')[1]}}
+  ];
+  const res = await fetch('/api/detect', {
+    method:'POST', headers: Object.assign({'Content-Type':'application/json'}, await authHeaders()),
+    body: JSON.stringify({ model:'claude-sonnet-5', max_tokens:2000, messages:[{role:'user', content}] })
+  });
+  const data = await res.json();
+  if(!res.ok){
+    throw new Error((data && data.error && data.error.message) ? data.error.message : ('Erreur HTTP '+res.status));
+  }
+  const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+  let clean = text.replace(/```json|```/g,'').trim();
+  const firstBrace = clean.indexOf('{');
+  const lastBrace = clean.lastIndexOf('}');
+  if(firstBrace===-1 || lastBrace===-1){
+    throw new Error('Réponse de l\u2019IA sans JSON exploitable : "'+clean.slice(0,160)+'"');
+  }
+  clean = clean.slice(firstBrace, lastBrace+1);
+  const parsed = JSON.parse(clean);
+  return Array.isArray(parsed.fields) ? parsed.fields : [];
+}
+
+async function detectFullPage(pageIndex){
+  const p = state.pdfPages[pageIndex];
+  const small = downscaleCanvas(p.canvas, 1100);
+  const dataUrl = small.toDataURL('image/jpeg', 0.62);
+  const fields = await callDetectAPI(dataUrl, 'Ceci est la page '+(pageIndex+1)+' du document (image complète).');
+  fields.forEach(f=>{ f.__page = pageIndex; });
+  return fields;
+}
+
+async function detectPageRegion(pageIndex, yStartPct, yEndPct){
+  const p = state.pdfPages[pageIndex];
+  const full = downscaleCanvas(p.canvas, 1100);
+  const cropTop = Math.round(full.height * yStartPct/100);
+  const cropBottom = Math.round(full.height * yEndPct/100);
+  const cropH = Math.max(1, cropBottom - cropTop);
+  const c2 = document.createElement('canvas');
+  c2.width = full.width; c2.height = cropH;
+  c2.getContext('2d').drawImage(full, 0, cropTop, full.width, cropH, 0, 0, full.width, cropH);
+  const dataUrl = c2.toDataURL('image/jpeg', 0.62);
+  const fields = await callDetectAPI(dataUrl, 'Ceci est un EXTRAIT (portion verticale) de la page '+(pageIndex+1)+' du document, pas la page entière — les coordonnées x/y sont relatives à CET EXTRAIT.');
+  const span = yEndPct - yStartPct;
+  fields.forEach(f=>{
+    f.y = yStartPct + (Number(f.y)||50) * span/100;
+    f.__page = pageIndex;
+  });
+  return fields;
+}
+
+function ingestDetectedFields(rawFields, totalPages){
+  rawFields.forEach(rf=>{
+    const page = clamp(rf.__page!=null ? rf.__page : 0, 0, totalPages-1);
+    const type = ['text','date','checkbox','signature','heading'].includes(rf.type) ? rf.type : 'text';
+    const sizeKey = ['s','m','l'].includes(rf.size) ? rf.size : 'm';
+    const preset = SIZE_PRESETS[type][sizeKey];
+    const w = preset.w, h = preset.h;
+    const cx = Number(rf.x), cy = Number(rf.y);
+    const x = clamp((isNaN(cx)?50:cx) - w/2, 0, 100-w);
+    const y = clamp((isNaN(cy)?50:cy) - h/2, 0, 100-h);
+    const f = {
+      id: uid(), page, type, auto: true,
+      label: rf.label || TYPE_LABELS[type],
+      x, y, w, h
+    };
+    state.fields.push(f);
+    state.pageOverlays[page].appendChild(createFieldElement(f, state.pageOverlays[page]));
+  });
+}
+
+function isConfigError(msg){
+  return /ANTHROPIC_API_KEY/i.test(msg||'');
+}
+
+async function runDetection(){
+  const statusEl = document.getElementById('detectStatus');
+  const totalPages = state.pdfPages.length;
+  clearAutoFields();
+  updateStatusLine();
+
+  let totalFound = 0;
+  const failedRanges = [];
+
+  for(let pageIndex=0; pageIndex<totalPages; pageIndex++){
+    statusEl.innerHTML = '<div class="spinner-row"><div class="spinner"></div> Analyse de la page '+(pageIndex+1)+' sur '+totalPages+'…</div>';
+    try{
+      const rawFields = await detectFullPage(pageIndex);
+      ingestDetectedFields(rawFields, totalPages);
+      totalFound += rawFields.length;
+    }catch(err){
+      if(isConfigError(err.message)){
+        statusEl.innerHTML = '<p class="status-line" style="color:var(--ink-soft);">La détection automatique n\u2019est pas encore configurée sur ce site (clé API Anthropic manquante côté serveur). Ajoute des champs manuellement avec les boutons ci-contre en attendant — tu pourras activer la détection automatique plus tard sans rien reconstruire.</p>';
+        return;
+      }
+      console.warn('Page '+(pageIndex+1)+' trop dense pour une seule réponse, nouvelle tentative en 2 moitiés…', err);
+      statusEl.innerHTML = '<div class="spinner-row"><div class="spinner"></div> Page '+(pageIndex+1)+' dense — redécoupage en 2 parties…</div>';
+      try{
+        const topFields = await detectPageRegion(pageIndex, 0, 54);
+        const botFields = await detectPageRegion(pageIndex, 46, 100);
+        const combined = [...topFields, ...botFields];
+        ingestDetectedFields(combined, totalPages);
+        totalFound += combined.length;
+      }catch(err2){
+        console.error('Échec page '+(pageIndex+1), err2);
+        failedRanges.push({range: String(pageIndex+1), message: err2.message||String(err2)});
+      }
+    }
+    updateStatusLine();
+  }
+
+  for(let p=0; p<totalPages; p++) markConsumedBlocksForPage(p);
+  renderCreateSimpleList();
+
+  if(failedRanges.length){
+    const detail = failedRanges.map(r=>'page '+r.range+' ('+escapeHtml(r.message)+')').join(' · ');
+    statusEl.innerHTML = '<p class="status-line" style="color:var(--danger);">'+totalFound+' champ(s) détecté(s). Échec pour : '+detail+
+      '. <button class="btn btn-sm" id="retryDetectBtn">Réessayer tout</button></p>';
+    document.getElementById('retryDetectBtn').addEventListener('click', runDetection);
+  } else if(totalFound === 0){
+    statusEl.innerHTML = '<p class="status-line" style="color:var(--danger);">L\u2019IA n\u2019a trouvé aucun champ vide sur ce document. Ajoute-les manuellement avec les boutons ci-dessous, ou <button class="btn btn-sm" id="retryDetectBtn">réessaie</button>.</p>';
+    document.getElementById('retryDetectBtn').addEventListener('click', runDetection);
+  } else {
+    statusEl.innerHTML = '<p class="status-line" style="color:var(--success);">'+totalFound+' champ(s) détecté(s) sur '+totalPages+' page(s). Ajuste-les si besoin.</p>';
+  }
+}
+document.getElementById('detectBtn').addEventListener('click', ()=>{
+  if(!state.pdfPages.length) return;
+  runDetection();
+});
+
+/* ---------- save form ---------- */
+function renderShareBox(id, title){
+  document.getElementById('shareBoxWrap').innerHTML =
+    '<div class="share-box" style="margin-top:12px;">'+
+      '<strong>Formulaire enregistré.</strong>'+
+      '<div class="url mono" id="shareUrl">'+location.origin+location.pathname+'#fill='+id+'</div>'+
+      '<button class="btn btn-sm" id="copyLinkBtn">Copier le lien</button> '+
+      '<button class="btn btn-sm btn-accent" id="goTestBtn">Tester comme destinataire</button>'+
+    '</div>';
+  document.getElementById('copyLinkBtn').addEventListener('click', ()=>{
+    const url = document.getElementById('shareUrl').textContent;
+    navigator.clipboard?.writeText(url).then(()=>showToast('Lien copié !')).catch(()=>showToast(url));
+  });
+  document.getElementById('goTestBtn').addEventListener('click', async ()=>{
+    goToTab('fill');
+    await refreshFillDropdown();
+    document.getElementById('fillFormPickerInput').value = title;
+    loadFillForm(id);
+  });
+}
+
+async function performSave(isAutosave){
+  if(!state.pdfPages.length) return { ok:false };
+  const title = (document.getElementById('formTitleInput').value || 'Formulaire sans titre').trim();
+  const notifyEmail = document.getElementById('notifyEmailInput').value.trim();
+  const id = state.currentFormId || uid();
+  const pages = state.pdfPages.map(p=>{
+    const small = downscaleCanvas(p.canvas, 1100);
+    return { w: p.width, h: p.height, img: small.toDataURL('image/jpeg', 0.65), transcript: (p.transcript||[]).filter(b=>!b.removed).map(b=>({type:b.type, text:b.text, yPct:b.yPct})) };
+  });
+  const formData = { pages, fields: state.fields.map(f=>({...f})) };
+  const indicator = document.getElementById('autosaveIndicator');
+  if(isAutosave && indicator) indicator.textContent = 'Enregistrement…';
+  const result = await apiSaveForm(id, title, formData, notifyEmail);
+  if(!result.ok){
+    if(isAutosave){
+      if(indicator) indicator.textContent = '';
+    } else {
+      document.getElementById('shareBoxWrap').innerHTML =
+        '<div class="share-box" style="margin-top:12px;border-color:var(--danger);background:#fbeceb;">'+
+        '<strong style="color:var(--danger);">Échec de la sauvegarde.</strong> '+escapeHtml(result.error||'')+' — vérifie que le script SQL a bien été exécuté, et que <code>SUPABASE_SERVICE_ROLE_KEY</code> est bien configurée sur Vercel. Regarde la console du navigateur (F12) pour le détail.</div>';
+    }
+    return result;
+  }
+  state.currentFormId = id;
+  if(isAutosave){
+    if(indicator){
+      indicator.textContent = 'Enregistré ✓ — ' + new Date().toLocaleTimeString('fr-CA', {hour:'2-digit', minute:'2-digit'});
+      setTimeout(()=>{ if(indicator.textContent.indexOf('Enregistré')===0) indicator.textContent=''; }, 4000);
+    }
+  } else {
+    renderShareBox(id, title);
+    showToast('Formulaire enregistré.');
+  }
+  return { ok:true, id };
+}
+
+let autosaveTimer = null;
+function startAutosave(){
+  stopAutosave();
+  autosaveTimer = setInterval(()=>{ performSave(true); }, 8000);
+}
+function stopAutosave(){
+  if(autosaveTimer){ clearInterval(autosaveTimer); autosaveTimer = null; }
+}
+
+document.getElementById('saveBtn').addEventListener('click', ()=>performSave(false));
+
+/* ===================== FILL TAB ===================== */
+/* ---------- Composant générique : liste de formulaires avec recherche ---------- */
+function createFormPicker(inputId, listId, onSelect){
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(listId);
+  let allForms = [];
+
+  function renderList(filterText){
+    const q = (filterText||'').trim().toLowerCase();
+    const filtered = q ? allForms.filter(f=>f.title.toLowerCase().includes(q)) : allForms;
+    if(!filtered.length){
+      list.innerHTML = '<div class="form-picker-empty">'+(allForms.length ? 'Aucun formulaire trouvé.' : 'Aucun formulaire enregistré.')+'</div>';
+    } else {
+      list.innerHTML = filtered.map(f=>'<div class="form-picker-item" data-id="'+f.id+'">'+escapeHtml(f.title)+'</div>').join('');
+    }
+    list.classList.add('open');
+  }
+
+  input.addEventListener('focus', ()=> renderList(input.value));
+  input.addEventListener('input', ()=> renderList(input.value));
+  input.addEventListener('blur', ()=> setTimeout(()=>list.classList.remove('open'), 150));
+  list.addEventListener('mousedown', e=>{
+    const item = e.target.closest('.form-picker-item');
+    if(!item) return;
+    const id = item.dataset.id;
+    const form = allForms.find(f=>f.id===id);
+    input.value = form ? form.title : '';
+    list.classList.remove('open');
+    onSelect(id);
+  });
+
+  return {
+    async refresh(){
+      const forms = await apiListForms();
+      if(forms === null){
+        allForms = [];
+        input.value = '';
+        input.placeholder = 'Connecte-toi comme admin…';
+        input.disabled = true;
+        return;
+      }
+      input.disabled = false;
+      input.placeholder = 'Choisir un formulaire…';
+      allForms = forms;
+    },
+    clear(){ input.value = ''; }
+  };
+}
+
+async function loadFillForm(id){
+  document.getElementById('fillSuccessMsg').style.display = 'none';
+  if(!id){
+    document.getElementById('fillEmptyState').style.display='block';
+    document.getElementById('fillFormArea').style.display='none';
+    document.getElementById('fillViewToggle').style.display='none';
+    return;
+  }
+  const form = await apiGetForm(id);
+  if(!form){ showToast('Formulaire introuvable.'); return; }
+  state.fillForm = Object.assign({ id: form.id, title: form.title }, form.data);
+  state.fillValues = {};
+  state.fillViewMode = 'simple';
+  document.getElementById('fillStatusLine').textContent = state.fillForm.pages.length+' page(s) · '+state.fillForm.fields.length+' champ(s) à remplir';
+  document.getElementById('fillEmptyState').style.display='none';
+  document.getElementById('fillFormArea').style.display='block';
+  document.getElementById('fillViewToggle').style.display='flex';
+  document.querySelectorAll('#fillViewToggle .subtab-btn').forEach(b=>b.classList.toggle('active', b.dataset.view==='simple'));
+  document.getElementById('fillSimpleView').style.display='block';
+  document.getElementById('fillPages').style.display='none';
+  renderFillSimpleView();
+  renderFillPages();
+}
+
+const fillFormPicker = createFormPicker('fillFormPickerInput', 'fillFormPickerList', loadFillForm);
+async function refreshFillDropdown(){ await fillFormPicker.refresh(); }
+
+document.querySelectorAll('#fillViewToggle .subtab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#fillViewToggle .subtab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.fillViewMode = btn.dataset.view;
+    document.getElementById('fillSimpleView').style.display = state.fillViewMode==='simple' ? 'block' : 'none';
+    document.getElementById('fillPages').style.display = state.fillViewMode==='overlay' ? 'flex' : 'none';
+    // re-render so already-entered values (and signatures) carry over visually
+    if(state.fillViewMode==='simple') renderFillSimpleView(); else renderFillPages();
+  });
+});
+
+function orderedFillFields(){
+  return [...state.fillForm.fields].sort((a,b)=> a.page-b.page || a.y-b.y || a.x-b.x);
+}
+
+function renderFillSimpleView(){
+  const container = document.getElementById('fillSimpleView');
+  container.innerHTML = '';
+  const pages = state.fillForm.pages;
+  const fields = state.fillForm.fields;
+  for(let p=0; p<pages.length; p++) markConsumedBlocksGeneric(pages, fields, p);
+
+  let any = false;
+  for(let p=0; p<pages.length; p++){
+    const timeline = getPageTimelineGeneric(pages, fields, p);
+    if(!timeline.length) continue;
+    any = true;
+    const tag = document.createElement('div'); tag.className='simple-page-tag'; tag.textContent='PAGE '+(p+1);
+    container.appendChild(tag);
+    let prevKind = null;
+    let i = 0;
+    while(i < timeline.length){
+      const item = timeline[i];
+      if(item.kind==='block'){
+        container.appendChild(buildTranscriptBlockEl(item.block));
+        prevKind = 'block-'+item.block.type;
+        i++;
+        continue;
+      }
+      if(item.field.type === 'checkbox'){
+        const group = [item.field];
+        let j = i+1;
+        while(j < timeline.length && timeline[j].kind==='field' && timeline[j].field.type==='checkbox'){
+          group.push(timeline[j].field); j++;
+        }
+        if(group.length > 1){
+          container.appendChild(buildChecklistGroup(group, prevKind==='block-heading'));
+          prevKind = 'checkbox';
+          i = j;
+          continue;
+        }
+      }
+      container.appendChild(buildSimpleFieldElement(item.field));
+      prevKind = 'field';
+      i++;
+    }
+  }
+  if(!any){
+    container.innerHTML = '<div class="csc-empty">Ce formulaire ne contient aucun champ pour le moment.</div>';
+  }
+}
+
+function buildChecklistGroup(group, hasHeadingAbove){
+  const wrap = document.createElement('div'); wrap.className='simple-field';
+  if(!hasHeadingAbove){
+    const label = document.createElement('label');
+    label.innerHTML = '<span class="type-dot" style="background:var(--type-checkbox);"></span>Cases à cocher';
+    wrap.appendChild(label);
+  }
+  const list = document.createElement('div'); list.className='checklist-group';
+  group.forEach(f=>{
+    const row = document.createElement('div'); row.className='checklist-row';
+    row.dataset.fieldId = f.id;
+    const box = buildCustomCheckbox(f, 'checklist-box');
+    box.addEventListener('click', ()=>row.classList.remove('field-missing'));
+    row.appendChild(box);
+    const span = document.createElement('span'); span.className='checklist-label';
+    span.textContent = f.label + (f.required ? ' *' : '');
+    row.appendChild(span);
+    list.appendChild(row);
+  });
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function buildCustomCheckbox(f, extraClass){
+  const box = document.createElement('div');
+  box.className = 'custom-checkbox' + (extraClass ? ' '+extraClass : '');
+  box.setAttribute('role','checkbox');
+  box.setAttribute('tabindex','0');
+  const isChecked = !!state.fillValues[f.id];
+  box.classList.toggle('checked', isChecked);
+  box.setAttribute('aria-checked', isChecked ? 'true' : 'false');
+  function toggle(){
+    const val = !box.classList.contains('checked');
+    box.classList.toggle('checked', val);
+    box.setAttribute('aria-checked', val ? 'true' : 'false');
+    state.fillValues[f.id] = val;
+  }
+  box.addEventListener('click', toggle);
+  box.addEventListener('keydown', e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); toggle(); } });
+  return box;
+}
+
+function buildSimpleFieldElement(f){
+  if(f.type==='heading'){
+    const heading = document.createElement('div');
+    heading.className = 'simple-heading';
+    heading.dataset.fieldId = f.id;
+    heading.textContent = f.label;
+    return heading;
+  }
+  const wrap = document.createElement('div'); wrap.className='simple-field';
+  wrap.dataset.fieldId = f.id;
+  const label = document.createElement('label');
+  label.innerHTML = '<span class="type-dot" style="background:var(--type-'+f.type+');"></span>' + escapeHtml(f.label) +
+    (f.required ? '<span class="required-mark">*</span>' : '');
+  wrap.appendChild(label);
+
+  if(f.type==='text' || f.type==='date'){
+    const input = document.createElement('input');
+    input.type = f.type==='date' ? 'date' : 'text';
+    input.className = 'simple-input';
+    if(state.fillValues[f.id]!=null) input.value = state.fillValues[f.id];
+    input.addEventListener('input', e=>{ state.fillValues[f.id]=e.target.value; wrap.classList.remove('field-missing'); });
+    wrap.appendChild(input);
+  } else if(f.type==='checkbox'){
+    const row = document.createElement('div'); row.className='simple-checkbox-row';
+    const box = buildCustomCheckbox(f, 'simple-checkbox-box');
+    box.addEventListener('click', ()=>wrap.classList.remove('field-missing'));
+    row.appendChild(box);
+    const span = document.createElement('span'); span.textContent = 'Cocher si applicable';
+    row.appendChild(span);
+    wrap.appendChild(row);
+  } else if(f.type==='signature'){
+    const canvas = document.createElement('canvas'); canvas.className='simple-sig-canvas';
+    wrap.appendChild(canvas);
+    const clearBtn = document.createElement('button');
+    clearBtn.type='button'; clearBtn.className='btn btn-sm'; clearBtn.textContent='Effacer';
+    clearBtn.style.marginTop='8px';
+    wrap.appendChild(clearBtn);
+    requestAnimationFrame(()=>setupSignaturePad(canvas, f, clearBtn));
+  }
+  return wrap;
+}
+
+function renderFillPages(){
+  const container = document.getElementById('fillPages');
+  container.innerHTML = '';
+  state.fillPageOverlays = [];
+  state.fillForm.pages.forEach((p,i)=>{
+    const wrap = document.createElement('div'); wrap.className='page-container';
+    const img = document.createElement('img'); img.src = p.img; img.className='page-img';
+    wrap.appendChild(img);
+    const overlay = document.createElement('div'); overlay.className='page-overlay';
+    wrap.appendChild(overlay);
+    container.appendChild(wrap);
+    state.fillPageOverlays[i] = overlay;
+  });
+  state.fillForm.fields.forEach(f=>{
+    if(f.type==='heading') return;
+    const overlay = state.fillPageOverlays[f.page];
+    if(!overlay) return;
+    overlay.appendChild(buildFillFieldElement(f));
+  });
+}
+
+function buildFillFieldElement(f){
+  const el = document.createElement('div');
+  el.className = 'fill-field';
+  el.dataset.fieldId = f.id;
+  el.style.left=f.x+'%'; el.style.top=f.y+'%'; el.style.width=f.w+'%'; el.style.height=f.h+'%';
+
+  if(f.type==='text'){
+    const input = document.createElement('input');
+    input.type='text'; input.placeholder=f.label; input.className='fill-input';
+    if(state.fillValues[f.id]!=null) input.value = state.fillValues[f.id];
+    input.addEventListener('input', e=>{ state.fillValues[f.id]=e.target.value; el.classList.remove('field-missing'); });
+    el.appendChild(input);
+  } else if(f.type==='date'){
+    const input = document.createElement('input');
+    input.type='date'; input.className='fill-input';
+    if(state.fillValues[f.id]!=null) input.value = state.fillValues[f.id];
+    input.addEventListener('input', e=>{ state.fillValues[f.id]=e.target.value; el.classList.remove('field-missing'); });
+    el.appendChild(input);
+  } else if(f.type==='checkbox'){
+    const box = buildCustomCheckbox(f);
+    box.addEventListener('click', ()=>el.classList.remove('field-missing'));
+    el.appendChild(box);
+  } else if(f.type==='signature'){
+    const canvas = document.createElement('canvas'); canvas.className='signature-canvas';
+    el.appendChild(canvas);
+    const clearBtn = document.createElement('button');
+    clearBtn.className='sig-clear'; clearBtn.textContent='Effacer'; clearBtn.type='button';
+    el.appendChild(clearBtn);
+    requestAnimationFrame(()=>setupSignaturePad(canvas, f, clearBtn));
+  }
+  return el;
+}
+
+function setupSignaturePad(canvas, field, clearBtn){
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio||1;
+  canvas.width = Math.max(1,rect.width*dpr); canvas.height = Math.max(1,rect.height*dpr);
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.strokeStyle = '#14213D';
+  let drawing=false, last=null;
+  const existing = state.fillValues[field.id];
+  if(existing){
+    const img = new Image();
+    img.onload = ()=>{ ctx.drawImage(img, 0, 0, rect.width, rect.height); };
+    img.src = existing;
+  }
+  function pos(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+  canvas.addEventListener('pointerdown', e=>{ drawing=true; last=pos(e); canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e=>{
+    if(!drawing) return;
+    const p = pos(e);
+    ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+    last = p;
+    state.fillValues[field.id] = canvas.toDataURL('image/png');
+  });
+  canvas.addEventListener('pointerup', ()=>{ drawing=false; });
+  canvas.addEventListener('pointerleave', ()=>{ drawing=false; });
+  clearBtn.addEventListener('click', ()=>{
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    delete state.fillValues[field.id];
+  });
+}
+
+document.getElementById('submitFillBtn').addEventListener('click', async ()=>{
+  if(!state.fillForm) return;
+  const btn = document.getElementById('submitFillBtn');
+  if(btn.disabled) return; // garde-fou anti double-clic
+  const missing = state.fillForm.fields.filter(f=>{
+    if(!f.required) return false;
+    const v = state.fillValues[f.id];
+    if(f.type==='checkbox') return !v;
+    return v==null || String(v).trim()==='';
+  });
+  if(missing.length){
+    missing.forEach(f=>{
+      const simpleEl = document.querySelector('#fillSimpleView [data-field-id="'+f.id+'"]');
+      if(simpleEl) simpleEl.classList.add('field-missing');
+      const overlayEl = document.querySelector('#fillPages [data-field-id="'+f.id+'"]');
+      if(overlayEl) overlayEl.classList.add('field-missing');
+    });
+    const firstMissing = document.querySelector('.field-missing');
+    if(firstMissing) firstMissing.scrollIntoView({behavior:'smooth', block:'center'});
+    showToast('Champs obligatoires manquants : '+missing.map(f=>f.label).join(', '));
+    return;
+  }
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;display:inline-block;vertical-align:-2px;margin-right:6px;"></span>Envoi en cours…';
+  const result = await apiSubmit(state.fillForm.id, state.fillValues);
+  if(!result.ok){
+    showToast('Échec de l\u2019envoi : ' + (result.error||'erreur inconnue') + '. Réessaie.');
+    btn.disabled = false;
+    btn.textContent = originalText;
+    return;
+  }
+  document.getElementById('fillFormArea').style.display='none';
+  document.getElementById('fillSuccessMsg').style.display='block';
+});
+
+/* ===================== DASHBOARD TAB ===================== */
+let dashState = { form:null, submissions:[], sortKey:'submittedAt', sortDir:'desc' };
+
+async function loadDashForm(id){
+  if(!id){
+    document.getElementById('dashEmptyState').style.display='block';
+    document.getElementById('dashTableWrap').style.display='none';
+    return;
+  }
+  const form = await apiGetForm(id);
+  const rawSubs = await apiGetSubmissions(id);
+  const subs = rawSubs.map(s=>({ id: s.id, submittedAt: new Date(s.submitted_at).getTime(), values: s.values }));
+  dashState.form = form ? Object.assign({ id: form.id, title: form.title }, form.data) : null;
+  dashState.submissions = subs;
+  document.getElementById('dashEmptyState').style.display='none';
+  document.getElementById('dashTableWrap').style.display='block';
+  renderDashTable();
+}
+
+const dashFormPicker = createFormPicker('dashFormPickerInput', 'dashFormPickerList', loadDashForm);
+async function refreshDashDropdown(){ await dashFormPicker.refresh(); }
+
+document.getElementById('dashSearch').addEventListener('input', renderDashTable);
+
+function buildDashboardColumns(record){
+  const cols = [];
+  for(let p=0; p<record.pages.length; p++){
+    const timeline = getPageTimelineGeneric(record.pages, record.fields, p);
+    let prevHeadingText = null;
+    let i = 0;
+    while(i < timeline.length){
+      const item = timeline[i];
+      if(item.kind==='block'){
+        if(item.block.type==='heading') prevHeadingText = item.block.text;
+        i++; continue;
+      }
+      const f = item.field;
+      if(f.type==='signature'){ i++; continue; }
+      if(f.type==='checkbox'){
+        const group=[f]; let j=i+1;
+        while(j<timeline.length && timeline[j].kind==='field' && timeline[j].field.type==='checkbox'){
+          group.push(timeline[j].field); j++;
+        }
+        if(group.length>1){
+          cols.push({
+            key: 'grp:'+group.map(x=>x.id).join('|'),
+            label: prevHeadingText || 'Sélection',
+            getValue: values => group.filter(x=>values[x.id]).map(x=>x.label).join(', ')
+          });
+          i = j; continue;
+        }
+      }
+      cols.push({
+        key: f.id,
+        label: f.label,
+        getValue: values => {
+          const v = values[f.id];
+          if(f.type==='checkbox') return v ? 'Oui' : '';
+          return v==null ? '' : String(v);
+        }
+      });
+      i++;
+    }
+  }
+  return cols;
+}
+
+function renderDashTable(){
+  if(!dashState.form) return;
+  const record = dashState.form;
+  const cols = buildDashboardColumns(record);
+  const hasSignature = record.fields.some(f=>f.type==='signature');
+  const query = document.getElementById('dashSearch').value.trim().toLowerCase();
+
+  let rows = dashState.submissions.map(s=>{
+    const cells = cols.map(c=>c.getValue(s.values));
+    return {sub:s, cells};
+  });
+
+  if(query){
+    rows = rows.filter(r => r.cells.some(c=>c.toLowerCase().includes(query)));
+  }
+
+  rows.sort((a,b)=>{
+    let av, bv;
+    if(dashState.sortKey==='submittedAt'){ av=a.sub.submittedAt; bv=b.sub.submittedAt; }
+    else{
+      const colIdx = cols.findIndex(c=>c.key===dashState.sortKey);
+      av = a.cells[colIdx]||''; bv = b.cells[colIdx]||'';
+    }
+    if(av<bv) return dashState.sortDir==='asc' ? -1 : 1;
+    if(av>bv) return dashState.sortDir==='asc' ? 1 : -1;
+    return 0;
+  });
+
+  const thead = document.querySelector('#dashTable thead');
+  const tbody = document.querySelector('#dashTable tbody');
+  thead.innerHTML = '<tr><th data-key="submittedAt">Date</th>' + (hasSignature?'<th>Document</th>':'') +
+    cols.map(c=>'<th data-key="'+c.key+'">'+escapeHtml(c.label)+'</th>').join('') + '</tr>';
+
+  thead.querySelectorAll('th[data-key]').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.dataset.key;
+      dashState.sortDir = (dashState.sortKey===key && dashState.sortDir==='asc') ? 'desc' : 'asc';
+      dashState.sortKey = key;
+      renderDashTable();
+    });
+  });
+
+  if(!rows.length){
+    tbody.innerHTML = '<tr><td colspan="'+(cols.length+2)+'" style="color:var(--ink-soft);">Aucune réponse pour le moment.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r=>{
+    const d = new Date(r.sub.submittedAt);
+    const dateStr = d.toLocaleDateString('fr-CA', {year:'numeric', month:'short', day:'numeric'});
+    const docCell = hasSignature ? '<td><button class="doc-btn" data-sub="'+r.sub.id+'">Voir le document</button></td>' : '';
+    const valCells = r.cells.map(v=>'<td>'+escapeHtml(v)+'</td>').join('');
+    return '<tr><td>'+dateStr+'</td>'+docCell+valCells+'</tr>';
+  }).join('');
+
+  tbody.querySelectorAll('.doc-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const sub = dashState.submissions.find(s=>s.id===btn.dataset.sub);
+      openSubmissionModal(sub);
+    });
+  });
+}
+
+function buildReadonlyFieldRow(f, value){
+  const wrap = document.createElement('div'); wrap.className='simple-field';
+  const label = document.createElement('label');
+  label.innerHTML = '<span class="type-dot" style="background:var(--type-'+f.type+');"></span>' + escapeHtml(f.label);
+  wrap.appendChild(label);
+  if(f.type==='signature'){
+    if(value){
+      const img = document.createElement('img'); img.src=value;
+      img.style.maxWidth='280px'; img.style.maxHeight='100px'; img.style.display='block';
+      img.style.border='1px solid var(--line)'; img.style.borderRadius='6px'; img.style.background='#fff';
+      wrap.appendChild(img);
+    } else {
+      const em = document.createElement('div'); em.className='ro-value ro-empty'; em.textContent='(non signé)';
+      wrap.appendChild(em);
+    }
+  } else {
+    const val = document.createElement('div');
+    val.className = 'ro-value' + (value ? '' : ' ro-empty');
+    val.textContent = value ? String(value) : '(vide)';
+    wrap.appendChild(val);
+  }
+  return wrap;
+}
+
+function buildReadonlyChecklistGroup(group, values, hasHeadingAbove){
+  const wrap = document.createElement('div'); wrap.className='simple-field';
+  if(!hasHeadingAbove){
+    const label = document.createElement('label');
+    label.innerHTML = '<span class="type-dot" style="background:var(--type-checkbox);"></span>Cases à cocher';
+    wrap.appendChild(label);
+  }
+  const list = document.createElement('div'); list.className='checklist-group';
+  group.forEach(f=>{
+    const row = document.createElement('div'); row.className='checklist-row';
+    const box = document.createElement('div');
+    box.className = 'custom-checkbox checklist-box' + (values[f.id] ? ' checked' : '');
+    row.appendChild(box);
+    const span = document.createElement('span'); span.className='checklist-label'; span.textContent=f.label;
+    row.appendChild(span);
+    list.appendChild(row);
+  });
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function openSubmissionModal(sub){
+  const record = dashState.form;
+  const pagesEl = document.getElementById('modalPages');
+  pagesEl.innerHTML = '';
+  for(let p=0; p<record.pages.length; p++) markConsumedBlocksGeneric(record.pages, record.fields, p);
+
+  let any = false;
+  for(let p=0; p<record.pages.length; p++){
+    const timeline = getPageTimelineGeneric(record.pages, record.fields, p);
+    if(!timeline.length) continue;
+    any = true;
+    const tag = document.createElement('div'); tag.className='simple-page-tag'; tag.textContent='PAGE '+(p+1);
+    pagesEl.appendChild(tag);
+    let prevKind = null;
+    let i = 0;
+    while(i < timeline.length){
+      const item = timeline[i];
+      if(item.kind==='block'){
+        pagesEl.appendChild(buildTranscriptBlockEl(item.block));
+        prevKind = 'block-'+item.block.type;
+        i++;
+        continue;
+      }
+      if(item.field.type === 'checkbox'){
+        const group = [item.field];
+        let j = i+1;
+        while(j < timeline.length && timeline[j].kind==='field' && timeline[j].field.type==='checkbox'){
+          group.push(timeline[j].field); j++;
+        }
+        if(group.length > 1){
+          pagesEl.appendChild(buildReadonlyChecklistGroup(group, sub.values, prevKind==='block-heading'));
+          prevKind = 'checkbox';
+          i = j;
+          continue;
+        }
+      }
+      pagesEl.appendChild(buildReadonlyFieldRow(item.field, sub.values[item.field.id]));
+      prevKind = 'field';
+      i++;
+    }
+  }
+  if(!any){
+    pagesEl.innerHTML = '<div class="csc-empty">Aucune réponse à afficher.</div>';
+  }
+  document.getElementById('modalBackdrop').classList.add('active');
+}
+document.getElementById('modalClose').addEventListener('click', ()=>document.getElementById('modalBackdrop').classList.remove('active'));
+document.getElementById('modalBackdrop').addEventListener('click', e=>{
+  if(e.target.id==='modalBackdrop') e.currentTarget.classList.remove('active');
+});
+
+document.getElementById('fabTryParticipant').addEventListener('click', ()=>{
+  goToTab('fill');
+  window.scrollTo({top:0, behavior:'smooth'});
+});
+
+(async function initialAuthGate(){
+  const hash = location.hash.replace('#','');
+  if(hash) return; // un lien précis (participant ou route) gère son propre affichage
+  await authReady;
+  if(!isAdminLoggedIn()){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('adminLoginGate').dataset.pendingTab = 'create';
+    document.getElementById('adminLoginGate').style.display = 'block';
+  }
+})();
+
+async function openResponseFromHash(submissionId){
+  await authReady;
+  if(!isAdminLoggedIn()){
+    // Pas connecté : on redirige vers la connexion, et on ouvre la réponse
+    // automatiquement une fois connecté (voir updateAuthUI / pendingResponseId).
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('adminLoginGate').dataset.pendingResponseId = submissionId;
+    document.getElementById('adminLoginGate').style.display = 'block';
+    return;
+  }
+  const result = await apiGetSubmission(submissionId);
+  if(!result){ showToast('Cette réponse est introuvable ou a été supprimée.'); goToTab('dashboard'); return; }
+  goToTab('dashboard');
+  dashState.form = Object.assign({ id: result.form.id, title: result.form.title }, result.form.data);
+  document.getElementById('dashFormPickerInput').value = result.form.title;
+  document.getElementById('dashEmptyState').style.display = 'none';
+  document.getElementById('dashTableWrap').style.display = 'block';
+  const rawSubs = await apiGetSubmissions(result.form.id);
+  dashState.submissions = rawSubs.map(s=>({ id: s.id, submittedAt: new Date(s.submitted_at).getTime(), values: s.values }));
+  renderDashTable();
+  const sub = dashState.submissions.find(s=>s.id===submissionId) || { id: result.submission.id, submittedAt: new Date(result.submission.submitted_at).getTime(), values: result.submission.values };
+  openSubmissionModal(sub);
+}
+
+(async function applyRouteFromHash(){
+  const hash = location.hash.replace('#','');
+  if(!hash) return;
+  if(hash.indexOf('response=')===0){
+    const submissionId = hash.split('=')[1];
+    if(submissionId) await openResponseFromHash(submissionId);
+    return;
+  }
+  if(hash === 'fill' || hash.indexOf('fill=')===0){
+    const parts = hash.split('=');
+    const formId = parts.length>1 ? parts[1] : null;
+
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-fill').classList.add('active');
+
+    if(formId){
+      // Lien direct vers un formulaire précis : c'est un participant, pas l'admin.
+      // On cache toute la navigation — le participant ne voit QUE le formulaire à
+      // remplir. Ceci est une simplification d'interface, PAS la sécurité réelle :
+      // la vraie protection est côté serveur (RLS + fonctions admin protégées).
+      const tabsBar = document.querySelector('header .tabs');
+      if(tabsBar) tabsBar.style.display = 'none';
+      const notice = document.querySelector('.notice');
+      if(notice) notice.style.display = 'none';
+      const fab = document.getElementById('fabTryParticipant');
+      if(fab) fab.style.display = 'none';
+      document.getElementById('fillFormPicker').style.display = 'none';
+      document.getElementById('fillStatusLine').style.display = 'none';
+
+      document.getElementById('fillSuccessMsg').style.display = 'none';
+      const form = await apiGetForm(formId);
+      if(!form){
+        document.getElementById('fillEmptyState').style.display = 'block';
+        document.getElementById('fillEmptyState').textContent = 'Ce lien de formulaire est introuvable ou a été retiré.';
+        document.getElementById('fillFormArea').style.display = 'none';
+        return;
+      }
+      state.fillForm = Object.assign({ id: form.id, title: form.title }, form.data);
+      state.fillValues = {};
+      state.fillViewMode = 'simple';
+      document.getElementById('fillEmptyState').style.display = 'none';
+      document.getElementById('fillFormArea').style.display = 'block';
+      document.getElementById('fillViewToggle').style.display = 'none';
+      document.getElementById('fillSimpleView').style.display = 'block';
+      document.getElementById('fillPages').style.display = 'none';
+      renderFillSimpleView();
+    } else {
+      goToTab('fill');
+      await refreshFillDropdown();
+    }
+  } else if(hash === 'dashboard'){
+    goToTab('dashboard');
+  }
+})();
+</script>
+</body>
+</html>
