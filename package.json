@@ -1,5 +1,6 @@
-node_modules/
-.vercel
-.env
-.env.local
-.DS_Store
+{
+  "name": "griffe",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Griffe — convertit un PDF en formulaire numérique remplissable."
+}
